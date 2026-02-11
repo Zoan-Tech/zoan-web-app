@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { feedService } from "@/services/feed";
 import { AppShell } from "@/components/layout";
@@ -8,10 +8,13 @@ import { PostCard, CreatePost } from "@/components/feed";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { IconButton } from "@/components/ui/icon-button";
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { PageContent } from "@/components/ui/page-content";
+
+const tabs = ["Feed", "Thesis", "Market"] as const;
+type Tab = (typeof tabs)[number];
 
 export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<Tab>("Feed");
   const {
     data,
     isLoading,
@@ -39,11 +42,6 @@ export default function HomePage() {
   // Derive posts from React Query data
   const posts = data?.pages.flatMap((page) => page.data) ?? [];
 
-  const handlePostCreated = useCallback(() => {
-    // Refetch to get the latest posts including the newly created one
-    refetch();
-  }, [refetch]);
-
   const handlePostUpdate = useCallback(() => {
     // Refetch to get the updated post
     refetch();
@@ -69,46 +67,57 @@ export default function HomePage() {
   return (
     <AppShell>
       {/* Header */}
-      <PageHeader
-        title="Home"
-        actions={
-          <IconButton onClick={() => refetch()}>
-            <ArrowsClockwiseIcon className="h-5 w-5" />
-          </IconButton>
-        }
-      />
-
-      {/* Create Post */}
-      <CreatePost onPostCreated={handlePostCreated} />
-
-      {/* Feed */}
-      {isLoading ? (
-        <LoadingSpinner size="lg" />
-      ) : isError ? (
-        <EmptyState
-          title="Failed to load feed"
-          action={
+      <PageHeader>
+        <nav className="flex gap-6">
+          {tabs.map((tab) => (
             <button
-              onClick={() => refetch()}
-              className="rounded-lg bg-[#27CEC5] px-4 py-2 text-sm font-medium text-white hover:bg-[#20b5ad]"
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`text-sm font-medium pb-0.5 transition-colors ${
+                activeTab === tab
+                  ? "text-gray-900 border-b-2 border-gray-900"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
             >
-              Try again
+              {tab}
             </button>
-          }
-        />
-      ) : posts.length === 0 ? (
-        <EmptyState
-          title="No posts yet"
-          description="Be the first to post something!"
-        />
-      ) : (
-        <>
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} />
           ))}
-          {isFetchingNextPage && <LoadingSpinner size="md" />}
-        </>
-      )}
+        </nav>
+      </PageHeader>
+      
+      <PageContent>
+        {/* Create Post */}
+        <CreatePost />
+
+        {/* Feed */}
+        {isLoading ? (
+          <LoadingSpinner size="lg" />
+        ) : isError ? (
+          <EmptyState
+            title="Failed to load feed"
+            action={
+              <button
+                onClick={() => refetch()}
+                className="rounded-lg bg-[#27CEC5] px-4 py-2 text-sm font-medium text-white hover:bg-[#20b5ad]"
+              >
+                Try again
+              </button>
+            }
+          />
+        ) : posts.length === 0 ? (
+          <EmptyState
+            title="No posts yet"
+            description="Be the first to post something!"
+          />
+        ) : (
+          <>
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} />
+            ))}
+            {isFetchingNextPage && <LoadingSpinner size="md" />}
+          </>
+        )}
+      </PageContent>
     </AppShell>
   );
 }

@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
         hostname: "syrup.protoxzoan.xyz",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "pbs.twimg.com",
+        pathname: "/**",
+      },
     ],
   },
   // Suppress hydration warnings in dev (for Privy)

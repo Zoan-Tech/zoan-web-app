@@ -21,5 +21,5 @@ export const alchemyRpcUrls: Record<number, string> = {
   // Testnets
   11155111: `https://eth-sepolia.g.alchemy.com/v2/${config.alchemy.apiKey}`,
   421614: `https://arb-sepolia.g.alchemy.com/v2/${config.alchemy.apiKey}`,
-  84532: `https://base-sepolia.g.alchemy.com/v2/${config.alchemy.apiKey}`,
+  84532: `https://sepolia.base.org`,
 };

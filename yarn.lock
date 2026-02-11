@@ -8130,6 +8130,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ox@npm:0.12.1":
+  version: 0.12.1
+  resolution: "ox@npm:0.12.1"
+  dependencies:
+    "@adraffy/ens-normalize": "npm:^1.11.0"
+    "@noble/ciphers": "npm:^1.3.0"
+    "@noble/curves": "npm:1.9.1"
+    "@noble/hashes": "npm:^1.8.0"
+    "@scure/bip32": "npm:^1.7.0"
+    "@scure/bip39": "npm:^1.6.0"
+    abitype: "npm:^1.2.3"
+    eventemitter3: "npm:5.0.1"
+  peerDependencies:
+    typescript: ">=5.4.0"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: c4218e369d963893412b54cf4ad780b492d9eb6c7b72958c761548924b55be63e20212a0ca491f4438b8f9faf72a31ff93c3f025819255789bd91a0334e835b2
+  languageName: node
+  linkType: hard
+
 "ox@npm:0.6.7":
   version: 0.6.7
   resolution: "ox@npm:0.6.7"
@@ -8691,6 +8712,15 @@ __metadata:
   version: 2.3.1
   resolution: "punycode@npm:2.3.1"
   checksum: 14f76a8206bc3464f794fb2e3d3cc665ae416c01893ad7a02b23766eb07159144ee612ad67af5e84fa4479ccfe67678c4feb126b0485651b302babf66f04f9e9
+  languageName: node
+  linkType: hard
+
+"qrcode.react@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "qrcode.react@npm:4.2.0"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 68c691d130e5fda2f57cee505ed7aea840e7d02033100687b764601f9595e1116e34c13876628a93e1a5c2b85e4efc27d30b2fda72e2050c02f3e1c4e998d248
   languageName: node
   linkType: hard
 
@@ -10433,6 +10463,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"viem@npm:^2.45.3":
+  version: 2.45.3
+  resolution: "viem@npm:2.45.3"
+  dependencies:
+    "@noble/curves": "npm:1.9.1"
+    "@noble/hashes": "npm:1.8.0"
+    "@scure/bip32": "npm:1.7.0"
+    "@scure/bip39": "npm:1.6.0"
+    abitype: "npm:1.2.3"
+    isows: "npm:1.0.7"
+    ox: "npm:0.12.1"
+    ws: "npm:8.18.3"
+  peerDependencies:
+    typescript: ">=5.0.4"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 5550a491e74d68b8eeaa97315f67867aad17b89a1b271202b23b37b4151a6109401a219a6824db74b33c3982676c182f11153189d811ee6431bb61b0e94f116d
+  languageName: node
+  linkType: hard
+
 "wagmi@npm:^2.15.6":
   version: 2.19.5
   resolution: "wagmi@npm:2.19.5"
@@ -10773,6 +10824,7 @@ __metadata:
     eslint: "npm:^9"
     eslint-config-next: "npm:16.1.6"
     next: "npm:16.1.6"
+    qrcode.react: "npm:^4.2.0"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-query: "npm:^3.39.3"
@@ -10780,6 +10832,7 @@ __metadata:
     tailwind-merge: "npm:^3.4.0"
     tailwindcss: "npm:^4"
     typescript: "npm:^5"
+    viem: "npm:^2.45.3"
     zustand: "npm:^5.0.11"
   languageName: unknown
   linkType: soft

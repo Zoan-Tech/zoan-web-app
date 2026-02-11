@@ -61,6 +61,22 @@ export function getFingerprint(): string {
   return btoa(fingerprint).substring(0, 32);
 }
 
+// Logout handler for 401 responses (set by auth store to avoid circular imports)
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: () => void): void {
+  onUnauthorized = handler;
+}
+
+function handleUnauthorized(): void {
+  clearTokens();
+  if (onUnauthorized) {
+    onUnauthorized();
+  } else {
+    window.location.href = "/login";
+  }
+}
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: config.apiUrl,
@@ -101,26 +117,28 @@ api.interceptors.response.use(
             device_id: getDeviceId(),
           });
 
-          if (response.data.success) {
-            const { access_token, refresh_token } = response.data.data.token;
-            setAccessToken(access_token);
-            if (refresh_token) {
-              setRefreshToken(refresh_token);
+          const token = response.data?.data?.token ?? response.data?.token;
+          if (token?.access_token) {
+            setAccessToken(token.access_token);
+            if (token.refresh_token) {
+              setRefreshToken(token.refresh_token);
             }
 
             if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${access_token}`;
+              originalRequest.headers.Authorization = `Bearer ${token.access_token}`;
             }
             return api(originalRequest);
           }
+
+          // Refresh response didn't contain a valid token
+          handleUnauthorized();
+          return Promise.reject(error);
         } catch (refreshError) {
-          clearTokens();
-          window.location.href = "/login";
+          handleUnauthorized();
           return Promise.reject(refreshError);
         }
       } else {
-        clearTokens();
-        window.location.href = "/login";
+        handleUnauthorized();
       }
     }
 

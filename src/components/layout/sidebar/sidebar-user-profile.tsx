@@ -10,13 +10,13 @@ export function SidebarUserProfile() {
   if (!user) return null;
 
   return (
-    <div className="mt-4">
+    <div className="px-4 py-4">
       <Link
         href={`/profile/${user.id}`}
         className="block transition-opacity hover:opacity-80"
         title="Profile"
       >
-        <UserAvatar user={user} size="lg" />
+        <UserAvatar user={user} size="md" />
       </Link>
     </div>
   );

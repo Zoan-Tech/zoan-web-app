@@ -9,7 +9,7 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-1 flex-col items-center justify-center gap-4">
+    <nav className="flex flex-1 flex-col items-center justify-center">
       {navItems.map((item) => {
         const isActive = pathname === item.href;
         return (
@@ -17,14 +17,17 @@ export function SidebarNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-lg transition-colors",
-              isActive
-                ? "bg-[#27CEC5] text-white"
-                : "text-gray-600 hover:bg-gray-100"
+              "flex h-15 w-15 items-center justify-center rounded transition-colors",
+              isActive ? "text-[#27CEC5]" : "text-[#272727] hover:bg-gray-100",
+              item.className,
+              !isActive && item.inactiveClassName
             )}
             title={item.label}
           >
-            <item.icon className="h-6 w-6" />
+            <item.icon
+              className={cn("h-6 w-6", item.iconClassName)}
+              weight={isActive ? "fill" : "regular"}
+            />
           </Link>
         );
       })}

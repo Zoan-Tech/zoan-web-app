@@ -62,10 +62,18 @@ export async function proxyToBackend(
     }
 
     const response = await fetch(targetUrl, fetchOptions);
-    
+
+    // 204 No Content cannot have a body
+    if (response.status === 204) {
+      return new NextResponse(null, {
+        status: 204,
+        statusText: response.statusText,
+      });
+    }
+
     const contentType = response.headers.get("content-type") || "";
     let responseBody: BodyInit;
-    
+
     if (contentType.includes("application/json")) {
       responseBody = JSON.stringify(await response.json());
     } else {
@@ -74,7 +82,7 @@ export async function proxyToBackend(
 
     const responseHeaders = new Headers();
     responseHeaders.set("Content-Type", contentType);
-    
+
     return new NextResponse(responseBody, {
       status: response.status,
       statusText: response.statusText,

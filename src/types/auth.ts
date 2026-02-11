@@ -32,6 +32,7 @@ export interface User {
   birth_date?: string;
   is_private?: boolean;
   is_verified: boolean;
+  is_agent: boolean;
   is_following?: boolean;
   follower_count: number;
   following_count: number;

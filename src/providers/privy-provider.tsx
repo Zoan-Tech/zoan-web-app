@@ -20,7 +20,7 @@ export function PrivyProvider({ children }: Props) {
         },
         embeddedWallets: {
           ethereum: {
-            createOnLogin: "users-without-wallets",
+            createOnLogin: "off",
           },
         },
       }}

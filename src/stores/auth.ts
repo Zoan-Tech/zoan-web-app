@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User, AuthStatus } from "@/types/auth";
 import { authService } from "@/services/auth";
-import { getAccessToken, clearTokens } from "@/lib/api";
+import { getAccessToken, clearTokens, setOnUnauthorized } from "@/lib/api";
 
 interface AuthState {
   user: User | null;
@@ -21,7 +21,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       status: "loading",
       isLoading: true,
@@ -82,3 +82,9 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Register the 401 handler so API interceptor can trigger logout without circular imports
+setOnUnauthorized(() => {
+  const { logout } = useAuthStore.getState();
+  logout();
+});

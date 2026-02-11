@@ -28,7 +28,7 @@ export function UserAvatar({ user, size = "md", className }: UserAvatarProps) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-full bg-gray-200 flex-shrink-0",
+        "overflow-hidden rounded bg-gray-200 flex-shrink-0",
         className
       )}
       style={{ width: px, height: px }}

@@ -39,6 +39,7 @@ export interface PostEntities {
 export interface Mention {
   username: string;
   start: number;
+  user_id: string;
   end: number;
 }
 
@@ -70,6 +71,7 @@ export interface Comment {
   is_liked: boolean;
   created_at: string;
   replies?: Comment[];
+  mentions?: Mention[];
 }
 
 export interface CreatePostRequest {

@@ -6,14 +6,16 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import {
   HeartIcon,
-  ChatCircleIcon,
-  ArrowsClockwiseIcon,
-  BookmarkSimpleIcon,
+  ChatTeardropIcon,
+  RepeatIcon,
+  ArrowSquareOutIcon,
   DotsThreeIcon,
 } from "@phosphor-icons/react";
 import { Post } from "@/types/feed";
 import { formatRelativeTime, formatNumber, cn } from "@/lib/utils";
+import { renderContentWithMentions } from "@/lib/render-mentions";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { feedService } from "@/services/feed";
 import { toast } from "sonner";
 
@@ -23,9 +25,9 @@ interface Props {
 }
 
 export function PostCard({ post, onUpdate }: Props) {
+  const router = useRouter();
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
-  const [isBookmarking, setIsBookmarking] = useState(false);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,37 +89,19 @@ export function PostCard({ post, onUpdate }: Props) {
     }
   };
 
-  const handleBookmark = async (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (isBookmarking) return;
-    setIsBookmarking(true);
-
-    try {
-      if (post.is_bookmarked) {
-        await feedService.unbookmarkPost(post.id);
-        onUpdate?.({
-          ...post,
-          is_bookmarked: false,
-        });
-      } else {
-        await feedService.bookmarkPost(post.id);
-        onUpdate?.({
-          ...post,
-          is_bookmarked: true,
-        });
-        toast.success("Added to bookmarks");
-      }
-    } catch (error) {
-      toast.error("Failed to update bookmark");
-    } finally {
-      setIsBookmarking(false);
-    }
+    const url = `${window.location.origin}/post/${post.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
   };
 
   return (
-    <article className="border-b border-gray-100 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+    <article
+      className="border-b border-[#E1F1F0] bg-white px-4 py-4 transition-colors hover:bg-gray-50 cursor-pointer"
+      onClick={() => router.push(`/post/${post.id}`)}
+    >
       <div className="flex gap-3">
         {/* Avatar */}
         <Link href={`/profile/${post.user.id}`} className="flex-shrink-0">
@@ -130,23 +114,26 @@ export function PostCard({ post, onUpdate }: Props) {
           <div className="flex items-center gap-1">
             <Link
               href={`/profile/${post.user.id}`}
-              className="truncate font-semibold text-gray-900 hover:underline"
+              className="truncate font-semibold text-gray-900 hover:underline text-sm"
             >
               {post.user.display_name}
             </Link>
             {post.user.is_verified && <VerifiedBadge size="sm" />}
-            <span className="text-gray-500">@{post.user.username}</span>
-            <span className="text-gray-400">·</span>
-            <span className="text-gray-500 text-sm">
-              {formatRelativeTime(post.created_at)}
-            </span>
-            <button className="ml-auto p-1 text-gray-400 hover:text-gray-600">
-              <DotsThreeIcon className="h-4 w-4" weight="bold" />
-            </button>
+            <span className="text-gray-500 text-[12px]">@{post.user.username}</span>
+            <div className="ml-auto justify-end flex items-center">
+              <span className="p-1 text-gray-500 text-[12px]">
+                {formatRelativeTime(post.created_at)}
+              </span>
+              <button className="p-1 text-gray-400 hover:text-gray-600">
+                <DotsThreeIcon className="h-4 w-4" weight="bold" />
+              </button>
+            </div>
           </div>
 
           {/* Post Content */}
-          <p className="mt-1 whitespace-pre-wrap text-gray-900">{post.content}</p>
+          <p className="mt-1 whitespace-pre-wrap text-gray-900 text-[12px]">
+            {renderContentWithMentions(post.content, post.entities?.mentions)}
+          </p>
 
           {/* Media */}
           {post.media_urls && post.media_urls.length > 0 && (
@@ -198,62 +185,54 @@ export function PostCard({ post, onUpdate }: Props) {
 
           {/* Actions */}
           <div className="mt-3 flex items-center gap-6">
+            <Link
+              href={`/post/${post.id}`}
+              className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
+            >
+              <ChatTeardropIcon className="h-4 w-4" />
+              <span className="min-w-[1ch]">
+                {post.reply_count > 0 ? formatNumber(post.reply_count) : ""}
+              </span>
+            </Link>
+
+            <button
+              onClick={handleRepost}
+              className={cn(
+                "flex w-10 items-center gap-1 text-sm transition-colors",
+                post.is_reposted
+                  ? "text-green-500"
+                  : "text-gray-500 hover:text-green-500"
+              )}
+            >
+              <RepeatIcon className="h-4 w-4" />
+              <span className="min-w-[1ch]">
+                {post.repost_count > 0 ? formatNumber(post.repost_count) : ""}
+              </span>
+            </button>
+
             <button
               onClick={handleLike}
               className={cn(
-                "flex items-center gap-1 text-sm transition-colors",
+                "flex w-10 items-center gap-1 text-sm transition-colors",
                 post.is_liked
                   ? "text-red-500"
                   : "text-gray-500 hover:text-red-500"
               )}
             >
               <HeartIcon
-                className="h-5 w-5"
+                className="h-4 w-4"
                 weight={post.is_liked ? "fill" : "regular"}
               />
-              {post.like_count > 0 && (
-                <span>{formatNumber(post.like_count)}</span>
-              )}
-            </button>
-
-            <Link
-              href={`/post/${post.id}`}
-              className="flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
-            >
-              <ChatCircleIcon className="h-5 w-5" />
-              {post.reply_count > 0 && (
-                <span>{formatNumber(post.reply_count)}</span>
-              )}
-            </Link>
-
-            <button
-              onClick={handleRepost}
-              className={cn(
-                "flex items-center gap-1 text-sm transition-colors",
-                post.is_reposted
-                  ? "text-green-500"
-                  : "text-gray-500 hover:text-green-500"
-              )}
-            >
-              <ArrowsClockwiseIcon className="h-5 w-5" />
-              {post.repost_count > 0 && (
-                <span>{formatNumber(post.repost_count)}</span>
-              )}
+              <span className="min-w-[1ch]">
+                {post.like_count > 0 ? formatNumber(post.like_count) : ""}
+              </span>
             </button>
 
             <button
-              onClick={handleBookmark}
-              className={cn(
-                "ml-auto text-sm transition-colors",
-                post.is_bookmarked
-                  ? "text-[#27CEC5]"
-                  : "text-gray-500 hover:text-[#27CEC5]"
-              )}
+              onClick={handleShare}
+              className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
             >
-              <BookmarkSimpleIcon
-                className="h-5 w-5"
-                weight={post.is_bookmarked ? "fill" : "regular"}
-              />
+              <ArrowSquareOutIcon className="h-4 w-4" />
             </button>
           </div>
         </div>

@@ -11,10 +11,10 @@ interface Props {
 
 export function AppShell({ children }: Props) {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-white/80">
       {/* Desktop Sidebar */}
-      <aside className="fixed hidden h-full w-20 border-r border-gray-200 bg-white lg:block">
-        <div className="flex h-full flex-col items-center py-4">
+      <aside className="fixed hidden h-full w-20 lg:block">
+        <div className="flex h-full flex-col items-center">
           <SidebarLogo />
           <SidebarNav />
           <SidebarUserProfile />

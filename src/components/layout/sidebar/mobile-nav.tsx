@@ -21,11 +21,15 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-2",
-                isActive ? "text-[#27CEC5]" : "text-gray-400"
+                "flex h-15 w-15 items-center justify-center rounded transition-colors",
+                isActive ? "text-[#27CEC5]" : "text-[#272727] hover:bg-gray-100",
+                item.className
               )}
             >
-              <item.icon className="h-6 w-6" />
+              <item.icon
+                className={cn("h-6 w-6", item.iconClassName)}
+                weight={isActive ? "fill" : "regular"}
+              />
             </Link>
           );
         })}

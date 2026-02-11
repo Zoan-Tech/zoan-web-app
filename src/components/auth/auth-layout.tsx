@@ -15,9 +15,13 @@ export function AuthLayout({ title, children, footer }: AuthLayoutProps) {
       <div className="flex w-full flex-col justify-between bg-white p-8 lg:w-1/2">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#27CEC5]">
-            <span className="text-sm font-bold text-white">✿</span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Zoan"
+            width={32}
+            height={32}
+            priority
+          />
           <span className="text-xl font-semibold text-gray-900">zoan</span>
         </div>
 
