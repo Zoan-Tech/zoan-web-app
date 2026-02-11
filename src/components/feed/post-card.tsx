@@ -9,8 +9,8 @@ import {
   ChatTeardropIcon,
   RepeatIcon,
   ArrowSquareOutIcon,
-  DotsThreeIcon,
 } from "@phosphor-icons/react";
+import { MoreMenu } from "./more-menu";
 import { Post } from "@/types/feed";
 import { formatRelativeTime, formatNumber, cn } from "@/lib/utils";
 import { renderContentWithMentions } from "@/lib/render-mentions";
@@ -99,8 +99,7 @@ export function PostCard({ post, onUpdate }: Props) {
 
   return (
     <article
-      className="border-b border-[#E1F1F0] bg-white px-4 py-4 transition-colors hover:bg-gray-50 cursor-pointer"
-      onClick={() => router.push(`/post/${post.id}`)}
+      className="border-b border-[#E1F1F0] bg-white px-4 py-4"
     >
       <div className="flex gap-3">
         {/* Avatar */}
@@ -111,29 +110,33 @@ export function PostCard({ post, onUpdate }: Props) {
         {/* Content */}
         <div className="min-w-0 flex-1">
           {/* Header */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-start gap-1">
             <Link
               href={`/profile/${post.user.id}`}
-              className="truncate font-semibold text-gray-900 hover:underline text-sm"
+              className="truncate font-semibold text-gray-900 hover:underline text-sm align-top"
             >
               {post.user.display_name}
             </Link>
             {post.user.is_verified && <VerifiedBadge size="sm" />}
-            <span className="text-gray-500 text-[12px]">@{post.user.username}</span>
+            <span className="text-gray-500 text-[12px] align-top">@{post.user.username}</span>
             <div className="ml-auto justify-end flex items-center">
               <span className="p-1 text-gray-500 text-[12px]">
                 {formatRelativeTime(post.created_at)}
               </span>
-              <button className="p-1 text-gray-400 hover:text-gray-600">
-                <DotsThreeIcon className="h-4 w-4" weight="bold" />
-              </button>
+              <MoreMenu
+                authorId={post.user.id}
+                copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
+              />
             </div>
           </div>
 
           {/* Post Content */}
-          <p className="mt-1 whitespace-pre-wrap text-gray-900 text-[12px]">
+          <div
+            onClick={() => router.push(`/post/${post.id}`)}
+            className="mt-1 block whitespace-pre-wrap text-gray-900 text-[12px] cursor-pointer align-top"
+          >
             {renderContentWithMentions(post.content, post.entities?.mentions)}
-          </p>
+          </div>
 
           {/* Media */}
           {post.media_urls && post.media_urls.length > 0 && (

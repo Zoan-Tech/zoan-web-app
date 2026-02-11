@@ -19,11 +19,19 @@ export function useWalletInit() {
 
   const hasStoredRef = useRef(false);
   const isCreatingRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
   const storeWalletToBackend = useCallback(
     async (address: string, privyDid: string) => {
       if (hasStoredRef.current) return;
+      if (retryCountRef.current >= MAX_RETRIES) {
+        console.warn("[WalletInit] Max retries reached for storeWallet");
+        setError("Failed to store wallet after multiple attempts");
+        return;
+      }
       hasStoredRef.current = true;
+      retryCountRef.current += 1;
 
       try {
         await walletService.storeWallet(address, privyDid);

@@ -83,6 +83,18 @@ export const feedService = {
     await api.delete(`/comments/${commentId}/like`);
   },
 
+  async getComment(commentId: string): Promise<Comment> {
+    const response = await api.get(`/comments/${commentId}`);
+    return response.data.data;
+  },
+
+  async getCommentReplies(commentId: string, page: number = 1): Promise<Comment[]> {
+    const response = await api.get(`/comments/${commentId}/replies`, {
+      params: { page, per_page: 20 },
+    });
+    return response.data.data;
+  },
+
   async getUserPosts(userId: string, page: number = 1): Promise<FeedResponse> {
     const response = await api.get(`/posts/user/${userId}`, {
       params: { page, per_page: 20 },

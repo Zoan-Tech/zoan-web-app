@@ -58,7 +58,10 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
-          await authService.logout();
+          const token = getAccessToken();
+          if (token) {
+            await authService.logout();
+          }
         } catch (error) {
           console.error("Logout error:", error);
         } finally {

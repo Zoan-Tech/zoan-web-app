@@ -68,13 +68,19 @@ export function setOnUnauthorized(handler: () => void): void {
   onUnauthorized = handler;
 }
 
+let isLoggingOut = false;
+
 function handleUnauthorized(): void {
+  if (isLoggingOut) return;
+  isLoggingOut = true;
   clearTokens();
   if (onUnauthorized) {
     onUnauthorized();
   } else {
     window.location.href = "/login";
   }
+  // Keep the guard up briefly to prevent concurrent 401s from re-triggering
+  setTimeout(() => { isLoggingOut = false; }, 1000);
 }
 
 // Create axios instance
