@@ -13,7 +13,7 @@ import { ActionCard } from "@/components/ui/action-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { SUPPORTED_CHAINS } from "@/types/wallet";
 import { useWalletStore } from "@/stores/wallet";
-import { useTokenBalances } from "@/hooks/useTokenBalances";
+import { useTokenBalances } from "@/hooks/use-token-balances";
 import {
   CopyIcon,
   ArrowSquareOutIcon,

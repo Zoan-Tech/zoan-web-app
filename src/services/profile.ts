@@ -57,6 +57,20 @@ export const profileService = {
     throw new Error(response.data.message || "Failed to fetch following");
   },
 
+  async searchUsers(query: string, limit: number = 10): Promise<User[]> {
+    try {
+      const response = await api.get("/users/search", {
+        params: { q: query, limit },
+      });
+      if (response.data.success) {
+        return response.data.data;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
   async uploadAvatar(file: File): Promise<string> {
     const formData = new FormData();
     formData.append("file", file);

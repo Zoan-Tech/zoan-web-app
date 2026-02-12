@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
 import { feedService } from "@/services/feed";
+import { useMentionInput } from "@/hooks/use-mention-input";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { MentionDropdown } from "@/components/ui/mention-dropdown";
+import { MentionHighlight } from "@/components/ui/mention-highlight";
 import {
   CaretLeftIcon,
   ImageSquareIcon,
@@ -18,9 +22,20 @@ import Image from "next/image";
 
 export default function CreatePostPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    content,
+    setContent,
+    mentionResults,
+    showMentions,
+    selectedIndex,
+    handleKeyDown,
+    selectMention,
+    inputRef,
+  } = useMentionInput();
 
   const handleSubmit = async () => {
     if (!content.trim()) {
@@ -34,6 +49,7 @@ export default function CreatePostPage() {
         content: content.trim(),
         visibility: "public",
       });
+      await queryClient.invalidateQueries({ queryKey: ["feed"] });
       toast.success("Post created!");
       router.push("/");
     } catch (error) {
@@ -64,16 +80,34 @@ export default function CreatePostPage() {
 
       <PageContent className="flex min-h-[calc(100vh-56px)] flex-col">
         {/* Text area */}
-        <div className="flex flex-1 gap-3 p-4">
+        <div className="relative flex flex-1 gap-3 p-4">
           <UserAvatar user={user} size="md" />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="What's happening?"
-            className="flex-1 resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
-            autoFocus
-            disabled={isLoading}
-          />
+          <div className="relative flex-1">
+            <MentionHighlight
+              content={content}
+              placeholder="What's happening?"
+              className="min-h-[1.25rem] whitespace-pre-wrap break-words text-sm leading-[1.5] text-gray-900"
+            />
+            <textarea
+              ref={(el) => {
+                (inputRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>).current = el;
+              }}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                handleKeyDown(e);
+              }}
+              className="absolute inset-0 h-full w-full resize-none border-0 bg-transparent p-0 text-sm leading-[1.5] text-transparent caret-gray-900 focus:outline-none focus:ring-0"
+              autoFocus
+              disabled={isLoading}
+            />
+            <MentionDropdown
+              results={mentionResults}
+              selectedIndex={selectedIndex}
+              onSelect={selectMention}
+              visible={showMentions}
+            />
+          </div>
         </div>
 
         {/* Bottom toolbar */}

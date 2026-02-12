@@ -63,7 +63,7 @@ export interface PollOption {
 export interface Comment {
   id: string;
   post_id: string;
-  parent_id?: string;
+  parent_comment_id?: string;
   content: string;
   user: User;
   like_count: number;
@@ -90,6 +90,6 @@ export interface CreatePollRequest {
 
 export interface CreateCommentRequest {
   post_id: string;
-  parent_id?: string;
+  parent_comment_id?: string;
   content: string;
 }

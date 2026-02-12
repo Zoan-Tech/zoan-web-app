@@ -11,14 +11,12 @@ import { PageContent } from "@/components/ui/page-content";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CommentCard, ReplyInput, PostActions } from "@/components/feed";
+import { CommentCard, ReplyInput, PostActions, MoreMenu } from "@/components/feed";
 import { formatRelativeTime } from "@/lib/utils";
 import { Post } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
-import {
-  DotsThreeIcon,
-  CaretLeftIcon,
-} from "@phosphor-icons/react";
+import { CaretLeftIcon } from "@phosphor-icons/react";
+import { toast } from "sonner";
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -101,9 +99,9 @@ export default function PostDetailPage() {
         {/* Main Post */}
         <article className="border-b border-[#E1F1F0] px-4 py-4">
           <div className="flex gap-3">
-            <Link href={`/profile/${post.user.id}`} className="flex-shrink-0">
+            <div className="flex-shrink-0">
               <UserAvatar user={post.user} size="md" />
-            </Link>
+            </div>
 
             <div className="min-w-0 flex-1">
               {/* Header */}
@@ -122,16 +120,26 @@ export default function PostDetailPage() {
                   <span className="p-1 text-gray-500 text-[12px]">
                     {formatRelativeTime(post.created_at)}
                   </span>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
-                    <DotsThreeIcon className="h-4 w-4" weight="bold" />
-                  </button>
+                  <MoreMenu
+                    authorId={post.user.id}
+                    onDelete={async () => {
+                      try {
+                        await feedService.deletePost(post.id);
+                        toast.success("Post deleted");
+                        router.back();
+                      } catch {
+                        toast.error("Failed to delete post");
+                      }
+                    }}
+                    copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
+                  />
                 </div>
               </div>
 
               {/* Content */}
-              <p className="mt-1 whitespace-pre-wrap text-gray-900 text-[12px]">
+              <div className="text-gray-900 text-[12px]">
                 {renderContentWithMentions(post.content, post.entities?.mentions)}
-              </p>
+              </div>
 
               {/* Actions */}
               <div className="mt-3">
@@ -154,7 +162,7 @@ export default function PostDetailPage() {
           </div>
         ) : comments && comments.length > 0 ? (
           comments.map((comment) => (
-            <CommentCard key={comment.id} comment={comment} />
+            <CommentCard key={comment.id} comment={comment} onDelete={() => refetchComments()} />
           ))
         ) : null}
       </PageContent>

@@ -1,37 +1,85 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import Markdown from "react-markdown";
 import { Mention } from "@/types/feed";
+
+const MENTION_PREFIX = "@@mention@@";
+
+function buildMarkdownWithMentions(
+  content: string,
+  mentions?: Mention[]
+): string {
+  if (!mentions || mentions.length === 0) return content;
+
+  const sorted = [...mentions].sort((a, b) => b.start - a.start);
+  let result = content;
+
+  sorted.forEach((mention) => {
+    const mentionText = content.slice(mention.start, mention.end);
+    result =
+      result.slice(0, mention.start) +
+      `[${mentionText}](${MENTION_PREFIX}${mention.user_id})` +
+      result.slice(mention.end);
+  });
+
+  return result;
+}
 
 export function renderContentWithMentions(
   content: string,
   mentions?: Mention[]
 ): React.ReactNode {
-  if (!mentions || mentions.length === 0) return content;
+  const raw = buildMarkdownWithMentions(content, mentions);
+  // Ensure literal \n sequences become real newlines for markdown parsing
+  const markdown = raw.replace(/\\n/g, "\n");
 
-  const sorted = [...mentions].sort((a, b) => a.start - b.start);
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-
-  sorted.forEach((mention, i) => {
-    if (mention.start > lastIndex) {
-      parts.push(content.slice(lastIndex, mention.start));
-    }
-    parts.push(
-      <Link
-        key={i}
-        href={`/profile/${mention.user_id}`}
-        className="text-[#27CEC5] hover:underline"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {content.slice(mention.start, mention.end)}
-      </Link>
-    );
-    lastIndex = mention.end;
-  });
-
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
-  }
-
-  return parts;
+  return (
+    <Markdown
+      components={{
+        a({ href, children }) {
+          if (href?.startsWith(MENTION_PREFIX)) {
+            const userId = href.slice(MENTION_PREFIX.length);
+            return (
+              <Link
+                href={`/profile/${userId}`}
+                className="text-[#27CEC5] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {children}
+              </Link>
+            );
+          }
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#27CEC5] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {children}
+            </a>
+          );
+        },
+        p({ children }) {
+          return <p className="mb-2 last:mb-0">{children}</p>;
+        },
+        ul({ children }) {
+          return <ul className="list-disc pl-4 mb-2 last:mb-0">{children}</ul>;
+        },
+        ol({ children }) {
+          return (
+            <ol className="list-decimal pl-4 mb-2 last:mb-0">{children}</ol>
+          );
+        },
+        li({ children }) {
+          return <li className="mb-0.5">{children}</li>;
+        },
+      }}
+    >
+      {markdown}
+    </Markdown>
+  );
 }

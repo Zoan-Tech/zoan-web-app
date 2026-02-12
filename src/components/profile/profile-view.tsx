@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery as useQueryTanstack } from "@tanstack/react-query";
+import { useQuery as useQueryTanstack, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout";
 import { PostCard } from "@/components/feed";
 import { profileService, feedService } from "@/services";
@@ -15,6 +15,8 @@ import {
   CalendarIcon,
   LinkIcon,
   MapPinIcon,
+  DotsThreeCircleIcon,
+  SignOutIcon,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,19 +26,23 @@ import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
+import { EditProfileModal } from "@/components/profile/edit-profile-modal";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 
 interface ProfileViewProps {
   userId?: string;
 }
 
 export function ProfileView({ userId }: ProfileViewProps) {
-  const { user: currentUser, logout } = useAuthStore();
+  const { user: currentUser, logout, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const targetUserId = userId || currentUser?.id;
 
   const router = useRouter();
 
+  const [showEditModal, setShowEditModal] = useState(false);
   const [followOverride, setFollowOverride] = useState<{
     isFollowing: boolean;
     followersDelta: number;
@@ -48,7 +54,7 @@ export function ProfileView({ userId }: ProfileViewProps) {
     enabled: !!targetUserId,
   });
 
-  const { data: postsData, isLoading: isLoadingPosts } = useQueryTanstack({
+  const { data: postsData, isLoading: isLoadingPosts, refetch: refetchPosts } = useQueryTanstack({
     queryKey: ["userPosts", targetUserId],
     queryFn: () => feedService.getUserPosts(targetUserId!),
     enabled: !!targetUserId,
@@ -120,20 +126,37 @@ export function ProfileView({ userId }: ProfileViewProps) {
     <AppShell>
       {/* Header */}
       <PageHeader>
-        <div className="flex w-full items-center">
+        <div className="flex w-full items-center justify-between">
           <button
             onClick={() => router.back()}
-            className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
+            className="p-1 text-gray-600 hover:text-gray-900"
           >
             <CaretLeftIcon className="h-4 w-4" weight="bold" />
           </button>
-          <span className="mx-auto text-sm font-medium text-gray-900">Profile</span>
+          <span className="text-sm font-medium text-gray-900">Profile</span>
+          {isOwnProfile ? (
+            <DropdownMenu
+              trigger={
+                <DotsThreeCircleIcon className="h-5 w-5 text-gray-600 hover:text-gray-900" />
+              }
+              items={[
+                {
+                  label: "Log out",
+                  icon: <SignOutIcon className="h-4 w-4" />,
+                  onClick: handleLogout,
+                  variant: "danger",
+                },
+              ]}
+            />
+          ) : (
+            <div className="w-5" />
+          )}
         </div>
       </PageHeader>
 
       <PageContent>
         {/* Banner */}
-        <div className="relative bg-gradient-to-r from-[#27CEC5] to-[#20b5ad] sm:h-48">
+        <div className="relative h-36 overflow-hidden rounded-t-3xl bg-gradient-to-r from-[#27CEC5] to-[#20b5ad] sm:h-48">
           {profile.banner_url && (
             <Image
               src={profile.banner_url}
@@ -146,27 +169,33 @@ export function ProfileView({ userId }: ProfileViewProps) {
 
         {/* Profile Info */}
         <div className="relative px-4 pb-4">
-          {/* Avatar */}
-          <div className="-mt-12 mb-4 flex items-end justify-between sm:-mt-16">
-            <UserAvatar user={profile} size="xl" className="border-4 border-white" />
+          {/* Avatar + Action Button */}
+          <div className="relative mb-4 h-10 sm:h-12">
+            <div className="absolute -top-8 left-0 sm:-top-10">
+              <UserAvatar user={profile} size="xxl" className="border-4 border-white" showProfile={false}/>
+            </div>
 
-            {/* Action Button */}
-            {isOwnProfile ? (
-              <button className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
-                Edit Profile
-              </button>
-            ) : (
-              <button
-                onClick={handleFollow}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  isFollowing
-                    ? "border border-gray-300 text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
-                    : "bg-gray-900 text-white hover:bg-gray-800"
-                }`}
-              >
-                {isFollowing ? "Following" : "Follow"}
-              </button>
-            )}
+            <div className="flex justify-end pt-2">
+              {isOwnProfile ? (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                  Edit Profile
+                </button>
+              ) : (
+                <button
+                  onClick={handleFollow}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    isFollowing
+                      ? "border border-gray-300 text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                      : "bg-gray-900 text-white hover:bg-gray-800"
+                  }`}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Name & Username */}
@@ -245,12 +274,27 @@ export function ProfileView({ userId }: ProfileViewProps) {
           <LoadingSpinner size="md" />
         ) : postsData?.data && postsData.data.length > 0 ? (
           postsData.data.map((post: Post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} onDelete={() => refetchPosts()} />
           ))
         ) : (
           <div className="py-12 text-center text-gray-500">No posts yet</div>
         )}
       </PageContent>
+
+      {/* Edit Profile Modal */}
+      {isOwnProfile && profile && (
+        <EditProfileModal
+          open={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          profile={profile}
+          onUpdated={(updatedUser) => {
+            if (currentUser) {
+              setUser({ ...currentUser, ...updatedUser });
+            }
+            queryClient.invalidateQueries({ queryKey: ["profile", targetUserId] });
+          }}
+        />
+      )}
     </AppShell>
   );
 }

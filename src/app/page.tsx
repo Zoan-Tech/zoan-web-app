@@ -10,7 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
 
-const tabs = ["Feed", "Thesis", "Market"] as const;
+// const tabs = ["Feed", "Thesis", "Market"] as const;
+const tabs = ["Feed"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function HomePage() {
@@ -112,7 +113,7 @@ export default function HomePage() {
         ) : (
           <>
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} />
+              <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} onDelete={() => refetch()} />
             ))}
             {isFetchingNextPage && <LoadingSpinner size="md" />}
           </>

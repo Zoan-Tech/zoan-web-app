@@ -34,12 +34,11 @@ export function MobileNav() {
           );
         })}
         {user && (
-          <Link
-            href="/profile"
+          <div
             className="flex flex-col items-center gap-1 px-4 py-2"
           >
             <UserAvatar user={user} size="xs" />
-          </Link>
+          </div>
         )}
       </div>
     </nav>

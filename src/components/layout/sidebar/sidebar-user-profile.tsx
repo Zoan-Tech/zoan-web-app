@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useAuthStore } from "@/stores/auth";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
@@ -11,13 +10,11 @@ export function SidebarUserProfile() {
 
   return (
     <div className="px-4 py-4">
-      <Link
-        href={`/profile/${user.id}`}
+      <div
         className="block transition-opacity hover:opacity-80"
-        title="Profile"
       >
         <UserAvatar user={user} size="md" />
-      </Link>
+      </div>
     </div>
   );
 }

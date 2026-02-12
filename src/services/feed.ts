@@ -70,9 +70,13 @@ export const feedService = {
   async createComment(data: CreateCommentRequest): Promise<Comment> {
     const response = await api.post(`/posts/${data.post_id}/comments`, {
       content: data.content,
-      parent_id: data.parent_id,
+      parent_comment_id: data.parent_comment_id,
     });
     return response.data.data;
+  },
+
+  async deleteComment(commentId: string): Promise<void> {
+    await api.delete(`/comments/${commentId}`);
   },
 
   async likeComment(commentId: string): Promise<void> {

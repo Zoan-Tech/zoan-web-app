@@ -53,7 +53,7 @@ export function MoreMenu({
   onInsights,
 }: MoreMenuProps) {
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const [position, setPosition] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const currentUser = useAuthStore((s) => s.user);
@@ -68,10 +68,16 @@ export function MoreMenu({
     }
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      });
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const menuHeight = 300; // approximate max menu height
+      const right = window.innerWidth - rect.right;
+
+      if (spaceBelow < menuHeight) {
+        // Not enough space below — open above the trigger
+        setPosition({ bottom: window.innerHeight - rect.top + 4, right });
+      } else {
+        setPosition({ top: rect.bottom + 4, right });
+      }
     }
     setOpen(true);
   };
@@ -196,7 +202,7 @@ export function MoreMenu({
           <div
             ref={menuRef}
             className="fixed z-50 min-w-[200px] overflow-hidden rounded bg-[#F7F9F9] shadow-xl"
-            style={{ top: position.top, right: position.right }}
+            style={{ top: position.top, bottom: position.bottom, right: position.right }}
             onClick={(e) => e.stopPropagation()}
           >
             {items.map((item, i) =>

@@ -7,10 +7,12 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  header?: ReactNode;
+  maxWidth?: string;
   children: ReactNode;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, header, maxWidth = "sm:max-w-md", children }: ModalProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -38,15 +40,18 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       />
 
       {/* Content */}
-      <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-6 shadow-xl">
+      <div className={cn("relative w-full rounded-t-2xl sm:rounded-2xl bg-white shadow-xl", maxWidth)}>
         {/* Drag handle (mobile) */}
-        <div className="mb-2 flex justify-center sm:hidden">
+        <div className="flex justify-center pt-3 sm:hidden">
           <div className="h-1 w-10 rounded-full bg-gray-300" />
         </div>
 
-        {/* Header */}
-        {title && (
-          <div className="mb-4 flex items-center justify-between">
+        {/* Custom header */}
+        {header}
+
+        {/* Default header with title */}
+        {!header && title && (
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
@@ -57,7 +62,8 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
           </div>
         )}
 
-        {!title && (
+        {/* No header — floating close button */}
+        {!header && !title && (
           <button
             onClick={onClose}
             className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 sm:top-4"
@@ -66,8 +72,14 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
           </button>
         )}
 
-        {children}
+        <div className="p-6">
+          {children}
+        </div>
       </div>
     </div>
   );
+}
+
+function cn(...classes: (string | undefined | false)[]) {
+  return classes.filter(Boolean).join(" ");
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { usePrivy, useSubscribeToJwtAuthWithFlag } from "@privy-io/react-auth";
 import { useAuthStore } from "@/stores/auth";
 import { useWalletStore } from "@/stores/wallet";
-import { useWalletInit } from "@/hooks/useWalletInit";
+import { useWalletInit } from "@/hooks/use-wallet-init";
 import { walletService } from "@/services/wallet";
 
 interface Props {

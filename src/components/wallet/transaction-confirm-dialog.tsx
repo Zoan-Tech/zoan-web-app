@@ -5,7 +5,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { getNetworkColor } from "@/lib/wallet/network-colors";
 import { formatUsd } from "@/services/token-price";
 import type { Chain } from "@/types/wallet";
-import type { GasEstimation } from "@/hooks/useGasEstimation";
+import type { GasEstimation } from "@/hooks/use-gas-estimation";
 import { ShieldCheckIcon } from "@phosphor-icons/react";
 
 interface TransactionConfirmDialogProps {

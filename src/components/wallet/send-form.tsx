@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTokenBalances, type TokenWithPrice } from "@/hooks/useTokenBalances";
-import { useGasEstimation, type GasEstimation } from "@/hooks/useGasEstimation";
+import { useTokenBalances, type TokenWithPrice } from "@/hooks/use-token-balances";
+import { useGasEstimation, type GasEstimation } from "@/hooks/use-gas-estimation";
 import { encodeErc20Transfer, parseTokenAmount } from "@/lib/wallet/erc20";
 import { formatUsd } from "@/services/token-price";
 import { FormInput } from "@/components/ui/form-input";

@@ -22,9 +22,10 @@ import { toast } from "sonner";
 interface Props {
   post: Post;
   onUpdate?: (post: Post) => void;
+  onDelete?: (postId: string) => void;
 }
 
-export function PostCard({ post, onUpdate }: Props) {
+export function PostCard({ post, onUpdate, onDelete }: Props) {
   const router = useRouter();
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
@@ -89,6 +90,16 @@ export function PostCard({ post, onUpdate }: Props) {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      await feedService.deletePost(post.id);
+      toast.success("Post deleted");
+      onDelete?.(post.id);
+    } catch {
+      toast.error("Failed to delete post");
+    }
+  };
+
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -103,9 +114,9 @@ export function PostCard({ post, onUpdate }: Props) {
     >
       <div className="flex gap-3">
         {/* Avatar */}
-        <Link href={`/profile/${post.user.id}`} className="flex-shrink-0">
+        <div className="flex-shrink-0">
           <UserAvatar user={post.user} size="md" />
-        </Link>
+        </div>
 
         {/* Content */}
         <div className="min-w-0 flex-1">
@@ -125,6 +136,7 @@ export function PostCard({ post, onUpdate }: Props) {
               </span>
               <MoreMenu
                 authorId={post.user.id}
+                onDelete={handleDelete}
                 copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
               />
             </div>
@@ -133,7 +145,7 @@ export function PostCard({ post, onUpdate }: Props) {
           {/* Post Content */}
           <div
             onClick={() => router.push(`/post/${post.id}`)}
-            className="mt-1 block whitespace-pre-wrap text-gray-900 text-[12px] cursor-pointer align-top"
+            className="block text-gray-900 text-[12px] cursor-pointer align-top"
           >
             {renderContentWithMentions(post.content, post.entities?.mentions)}
           </div>

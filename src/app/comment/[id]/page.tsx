@@ -25,16 +25,17 @@ import {
   CaretLeftIcon,
   RobotIcon,
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 
-function ParentCommentArticle({ comment }: { comment: Comment }) {
+function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelete?: () => void }) {
   const { liked, likeCount, handleLike } = useCommentLike(comment);
 
   return (
     <article className="border-b border-[#E1F1F0] px-4 py-4">
       <div className="flex gap-3">
-        <Link href={`/profile/${comment.user.id}`} className="flex-shrink-0">
+        <div className="flex-shrink-0">
           <UserAvatar user={comment.user} size="md" />
-        </Link>
+        </div>
 
         <div className="min-w-0 flex-1">
           {/* Header */}
@@ -55,6 +56,7 @@ function ParentCommentArticle({ comment }: { comment: Comment }) {
               </span>
               <MoreMenu
                 authorId={comment.user.id}
+                onDelete={onDelete}
                 copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/comment/${comment.id}`}
               />
             </div>
@@ -71,9 +73,9 @@ function ParentCommentArticle({ comment }: { comment: Comment }) {
           )}
 
           {/* Content */}
-          <p className="mt-1 whitespace-pre-wrap text-gray-900 text-[12px]">
+          <div className="text-gray-900 text-[12px]">
             {renderContentWithMentions(comment.content, comment.mentions)}
-          </p>
+          </div>
 
           {/* Actions */}
           <div className="mt-3">
@@ -164,7 +166,18 @@ export default function CommentDetailPage() {
 
       <PageContent>
         {/* Parent Comment */}
-        <ParentCommentArticle comment={comment} />
+        <ParentCommentArticle
+          comment={comment}
+          onDelete={async () => {
+            try {
+              await feedService.deleteComment(comment.id);
+              toast.success("Comment deleted");
+              router.back();
+            } catch {
+              toast.error("Failed to delete comment");
+            }
+          }}
+        />
 
         {/* Reply Input */}
         <ReplyInput
@@ -181,7 +194,7 @@ export default function CommentDetailPage() {
           </div>
         ) : replies && replies.length > 0 ? (
           replies.map((reply) => (
-            <CommentCard key={reply.id} comment={reply} />
+            <CommentCard key={reply.id} comment={reply} onDelete={() => refetchReplies()} />
           ))
         ) : null}
       </PageContent>

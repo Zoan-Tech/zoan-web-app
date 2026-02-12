@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
         hostname: "pbs.twimg.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "play-lh.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
   // Suppress hydration warnings in dev (for Privy)
