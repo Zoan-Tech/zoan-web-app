@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { feedService } from "@/services/feed";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
-import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -26,6 +26,7 @@ import {
   RobotIcon,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 
 function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelete?: () => void }) {
   const { liked, likeCount, handleLike } = useCommentLike(comment);
@@ -34,7 +35,10 @@ function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelet
     <article className="border-b border-[#E1F1F0] px-4 py-4">
       <div className="flex gap-3">
         <div className="flex-shrink-0">
-          <UserAvatar user={comment.user} size="md" />
+          <UserAvatarWithFollow
+            user={comment.user}
+            size="md"
+          />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -103,7 +107,7 @@ export default function CommentDetailPage() {
     isLoading: isCommentLoading,
     isError: isCommentError,
   } = useQuery({
-    queryKey: ["comment", commentId],
+    queryKey: queryKeys.comment.byId(commentId),
     queryFn: () => feedService.getComment(commentId),
   });
 
@@ -112,7 +116,7 @@ export default function CommentDetailPage() {
     isLoading: isRepliesLoading,
     refetch: refetchReplies,
   } = useQuery({
-    queryKey: ["commentReplies", commentId],
+    queryKey: queryKeys.commentReplies.byCommentId(commentId),
     queryFn: () => feedService.getCommentReplies(commentId),
     enabled: !!comment,
   });

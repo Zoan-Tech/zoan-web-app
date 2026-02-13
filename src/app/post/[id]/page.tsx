@@ -8,7 +8,7 @@ import { feedService } from "@/services/feed";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
-import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CommentCard, ReplyInput, PostActions, MoreMenu } from "@/components/feed";
@@ -17,6 +17,7 @@ import { Post } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
 import { CaretLeftIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -30,7 +31,7 @@ export default function PostDetailPage() {
     isLoading: isPostLoading,
     isError: isPostError,
   } = useQuery({
-    queryKey: ["post", postId],
+    queryKey: queryKeys.post.byId(postId),
     queryFn: () => feedService.getPost(postId),
   });
 
@@ -39,13 +40,13 @@ export default function PostDetailPage() {
     isLoading: isCommentsLoading,
     refetch: refetchComments,
   } = useQuery({
-    queryKey: ["comments", postId],
+    queryKey: queryKeys.comments.byPostId(postId),
     queryFn: () => feedService.getComments(postId),
     enabled: !!post,
   });
 
   const handlePostUpdate = (updatedPost: Post) => {
-    queryClient.setQueryData(["post", postId], updatedPost);
+    queryClient.setQueryData(queryKeys.post.byId(postId), updatedPost);
   };
 
   if (isPostLoading) {
@@ -100,7 +101,10 @@ export default function PostDetailPage() {
         <article className="border-b border-[#E1F1F0] px-4 py-4">
           <div className="flex gap-3">
             <div className="flex-shrink-0">
-              <UserAvatar user={post.user} size="md" />
+              <UserAvatarWithFollow
+                user={post.user}
+                size="md"
+              />
             </div>
 
             <div className="min-w-0 flex-1">

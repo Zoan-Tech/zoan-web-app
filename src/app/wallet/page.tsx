@@ -176,7 +176,7 @@ export default function WalletPage() {
               )}
             </div>
 
-            <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#27CEC5] to-[#1a9e97] p-6 text-white">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#27CEC5] to-[#1a9e97] p-6 text-white">
               {/* Spacer for chain selector button */}
               <div className="mb-4 h-8" />
 

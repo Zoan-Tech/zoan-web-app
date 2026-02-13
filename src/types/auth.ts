@@ -17,6 +17,7 @@ export interface TokenResponse {
   refresh_token?: string;
   token_type: string;
   expires_in: number;
+  expires_at: string;
 }
 
 export interface User {
@@ -70,7 +71,7 @@ export interface Session {
 export interface VerifyLoginResponse {
   token: TokenResponse;
   user: User;
-  is_new_user: boolean;
+  needs_onboarding: boolean;
 }
 
 export type AuthStatus =

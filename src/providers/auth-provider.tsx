@@ -9,8 +9,8 @@ interface Props {
   children: React.ReactNode;
 }
 
-const PUBLIC_PATHS = ["/login", "/login/otp"];
-const ONBOARDING_PATHS = ["/onboarding/username", "/onboarding/displayname"];
+const PUBLIC_PATHS = ["/login", "/login/otp", "/signup"];
+const ONBOARDING_PATHS = ["/onboarding/username", "/onboarding/displayname", "/onboarding/avatar"];
 
 export function AuthProvider({ children }: Props) {
   const router = useRouter();

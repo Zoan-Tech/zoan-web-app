@@ -4,18 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authService } from "@/services/auth";
-import { ArrowRightIcon, SpinnerGapIcon, CheckIcon, XIcon } from "@phosphor-icons/react";
+import { SpinnerGapIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { OnboardingLayout } from "@/components/auth/onboarding-layout";
 
 export default function UsernamePage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [isLoading, ] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
 
-  // Debounced username check
   useEffect(() => {
     if (!username || username.length < 3) {
       setIsAvailable(null);
@@ -57,51 +55,45 @@ export default function UsernamePage() {
 
   return (
     <OnboardingLayout
-      title="Choose your username"
-      subtitle="This will be your unique identifier on Zoan"
-      currentStep={1}
-      totalSteps={2}
+      title="Choose username"
+      subtitle="Choose your unique zoan handle"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
         <div>
-          <label
-            htmlFor="username"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Username
-          </label>
-          <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              @
-            </span>
+          <div className="relative">
             <input
               id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
               placeholder="username"
-              className="w-full rounded-lg border border-gray-200 py-3 pl-8 pr-10 text-gray-900 placeholder:text-gray-400 focus:border-[#27CEC5] focus:outline-none focus:ring-2 focus:ring-[#27CEC5]/20"
-              disabled={isLoading}
+              className="w-full rounded-lg border border-gray-200 py-3 px-4 text-gray-900 placeholder:text-gray-400 focus:border-[#27CEC5] focus:outline-none focus:ring-2 focus:ring-[#27CEC5]/20"
             />
             {username.length >= 3 && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 {isChecking ? (
                   <SpinnerGapIcon className="h-5 w-5 animate-spin text-gray-400" />
                 ) : isAvailable === true ? (
-                  <CheckIcon className="h-5 w-5 text-green-500" />
+                  <CheckCircleIcon className="h-5 w-5 text-green-500" weight="fill" />
                 ) : isAvailable === false ? (
-                  <XIcon className="h-5 w-5 text-red-500" />
+                  <span className="text-xs text-red-500">Taken</span>
                 ) : null}
               </div>
             )}
           </div>
+          {isAvailable === true && username.length >= 3 && (
+            <p className="mt-1.5 flex items-center gap-1 text-sm text-green-600">
+              <CheckCircleIcon className="h-4 w-4" weight="fill" />
+              {username} is available
+            </p>
+          )}
           {username && !isValidUsername && (
-            <p className="mt-1 text-sm text-red-500">
+            <p className="mt-1.5 text-sm text-red-500">
               Only letters, numbers, and underscores allowed
             </p>
           )}
           {isAvailable === false && (
-            <p className="mt-1 text-sm text-red-500">
+            <p className="mt-1.5 text-sm text-red-500">
               This username is already taken
             </p>
           )}
@@ -109,12 +101,11 @@ export default function UsernamePage() {
 
         <LoadingButton
           type="submit"
-          isLoading={isLoading}
-          loadingText="Please wait..."
+          isLoading={false}
           disabled={!isAvailable || !isValidUsername}
+          className="mt-auto"
         >
           Continue
-          <ArrowRightIcon className="h-5 w-5" />
         </LoadingButton>
       </form>
     </OnboardingLayout>

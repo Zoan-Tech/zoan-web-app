@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { feedService } from "@/services/feed";
+import { queryKeys } from "@/lib/query-keys";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { MentionDropdown } from "@/components/ui/mention-dropdown";
@@ -263,7 +265,10 @@ function ReplyModal({
       {/* Parent comment preview */}
       <div className="flex gap-3">
         <div className="flex w-10 flex-shrink-0 flex-col items-center">
-          <UserAvatar user={comment.user} size="md" />
+          <UserAvatarWithFollow
+            user={comment.user}
+            size="md"
+          />
           <div className="mt-1 mb-1 w-[1px] flex-1 rounded-full bg-[#D1E9E8]" />
         </div>
         <div className="min-w-0 flex-1 pb-3">
@@ -391,7 +396,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
   };
   const shouldFetchReplies = comment.reply_count > 0 && comment.reply_count < 5;
   const { data: replies = [], isLoading: isLoadingReplies, refetch: refetchReplies } = useQuery({
-    queryKey: ["commentReplies", comment.id],
+    queryKey: queryKeys.commentReplies.byCommentId(comment.id),
     queryFn: () => feedService.getCommentReplies(comment.id),
     enabled: shouldFetchReplies,
   });
@@ -404,7 +409,10 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
       {/* Parent comment row */}
       <div className="flex gap-3">
         <div className="flex w-10 flex-shrink-0 flex-col items-center">
-          <UserAvatar user={comment.user} size="md" />
+          <UserAvatarWithFollow
+            user={comment.user}
+            size="md"
+          />
           {showThreadLine && (
             <div className="mt-1 mb-1 w-[1px] flex-1 rounded-full bg-[#D1E9E8]" />
           )}
@@ -433,7 +441,10 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
         return (
           <div className="flex gap-3" key={reply.id}>
             <div className="flex w-10 flex-shrink-0 flex-col items-center">
-              <UserAvatar user={reply.user} size="md" />
+              <UserAvatarWithFollow
+                user={reply.user}
+                size="md"
+              />
               {!isLastReply && (
                 <div className="mt-1 w-0.5 flex-1 rounded-full bg-[#D1E9E8]" />
               )}

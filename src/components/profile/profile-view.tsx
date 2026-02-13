@@ -9,6 +9,8 @@ import { useAuthStore } from "@/stores/auth";
 import { Post } from "@/types/feed";
 import { formatNumber } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useFollowUser } from "@/hooks/use-follow-user";
+import { queryKeys } from "@/lib/query-keys";
 
 import {
   CaretLeftIcon,
@@ -20,7 +22,6 @@ import {
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -36,6 +37,7 @@ interface ProfileViewProps {
 export function ProfileView({ userId }: ProfileViewProps) {
   const { user: currentUser, logout, setUser } = useAuthStore();
   const queryClient = useQueryClient();
+  const { toggleFollow } = useFollowUser();
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const targetUserId = userId || currentUser?.id;
@@ -43,46 +45,26 @@ export function ProfileView({ userId }: ProfileViewProps) {
   const router = useRouter();
 
   const [showEditModal, setShowEditModal] = useState(false);
-  const [followOverride, setFollowOverride] = useState<{
-    isFollowing: boolean;
-    followersDelta: number;
-  } | null>(null);
 
   const { data: profile, isLoading: isLoadingProfile } = useQueryTanstack({
-    queryKey: ["profile", targetUserId],
+    queryKey: queryKeys.profile.byUserId(targetUserId),
     queryFn: () => profileService.getProfile(targetUserId),
     enabled: !!targetUserId,
   });
 
   const { data: postsData, isLoading: isLoadingPosts, refetch: refetchPosts } = useQueryTanstack({
-    queryKey: ["userPosts", targetUserId],
+    queryKey: queryKeys.userPosts.byUserId(targetUserId!),
     queryFn: () => feedService.getUserPosts(targetUserId!),
     enabled: !!targetUserId,
   });
 
-  const isFollowing = followOverride?.isFollowing ?? profile?.is_following ?? false;
-  const followersCount = (profile?.follower_count ?? 0) + (followOverride?.followersDelta ?? 0);
+  const isFollowing = profile?.is_following ?? false;
+  const followersCount = profile?.follower_count ?? 0;
 
   const handleFollow = async () => {
-    if (!profile) return;
+    if (!userId || !profile) return;
 
-    try {
-      if (isFollowing) {
-        await profileService.unfollowUser(profile.id);
-        setFollowOverride({
-          isFollowing: false,
-          followersDelta: (followOverride?.followersDelta ?? 0) - 1,
-        });
-      } else {
-        await profileService.followUser(profile.id);
-        setFollowOverride({
-          isFollowing: true,
-          followersDelta: (followOverride?.followersDelta ?? 0) + 1,
-        });
-      }
-    } catch (error) {
-      toast.error("Failed to update follow status");
-    }
+    await toggleFollow(userId, isFollowing, profile.username);
   };
 
   const handleLogout = async () => {
@@ -274,7 +256,11 @@ export function ProfileView({ userId }: ProfileViewProps) {
           <LoadingSpinner size="md" />
         ) : postsData?.data && postsData.data.length > 0 ? (
           postsData.data.map((post: Post) => (
-            <PostCard key={post.id} post={post} onDelete={() => refetchPosts()} />
+            <PostCard
+              key={post.id}
+              post={post}
+              onDelete={() => refetchPosts()}
+            />
           ))
         ) : (
           <div className="py-12 text-center text-gray-500">No posts yet</div>
@@ -291,7 +277,7 @@ export function ProfileView({ userId }: ProfileViewProps) {
             if (currentUser) {
               setUser({ ...currentUser, ...updatedUser });
             }
-            queryClient.invalidateQueries({ queryKey: ["profile", targetUserId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.profile.byUserId(targetUserId) });
           }}
         />
       )}

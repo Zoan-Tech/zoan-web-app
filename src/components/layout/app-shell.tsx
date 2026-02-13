@@ -23,7 +23,7 @@ export function AppShell({ children }: Props) {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-20">
-        <div className="mx-auto max-w-2xl pb-20 lg:pb-0">{children}</div>
+        <div className="mx-auto flex min-h-screen max-w-2xl flex-col pb-20 lg:pb-0">{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation */}

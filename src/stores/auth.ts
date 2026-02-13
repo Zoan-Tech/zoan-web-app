@@ -32,17 +32,25 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       checkAuth: async () => {
-        set({ isLoading: true, error: null });
-        
         const token = getAccessToken();
         if (!token) {
           set({ status: "unauthenticated", isLoading: false, user: null });
           return;
         }
 
+        // If we already have a user with a resolved status (e.g. set after onboarding),
+        // skip the /users/me call and just clear loading
+        const { user: existingUser, status: currentStatus } = useAuthStore.getState();
+        if (existingUser && (currentStatus === "authenticated" || currentStatus === "onboarding_required")) {
+          set({ isLoading: false });
+          return;
+        }
+
+        set({ isLoading: true, error: null });
+
         try {
           const user = await authService.getUser();
-          
+
           // Check if user needs to complete onboarding
           if (!user.username || !user.display_name) {
             set({ status: "onboarding_required", user, isLoading: false });

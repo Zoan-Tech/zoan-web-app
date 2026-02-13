@@ -13,13 +13,14 @@ function OtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const { checkAuth } = useAuthStore();
+  const { setUser, setStatus } = useAuthStore();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (!email) {
@@ -66,6 +67,8 @@ function OtpContent() {
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
+    if (isSubmittingRef.current) return;
+
     const code = otp.join("");
 
     if (code.length !== 6) {
@@ -73,14 +76,17 @@ function OtpContent() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsLoading(true);
     try {
       const response = await authService.verifyLogin(email, code);
-      await checkAuth();
+      setUser(response.user);
 
-      if (response.is_new_user || !response.user.username) {
+      if (response.needs_onboarding) {
+        setStatus("onboarding_required");
         router.replace("/onboarding/username");
       } else {
+        setStatus("authenticated");
         router.replace("/");
       }
     } catch (error) {
@@ -88,10 +94,11 @@ function OtpContent() {
       toast.error("Invalid verification code. Please try again.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
+      isSubmittingRef.current = false;
     } finally {
       setIsLoading(false);
     }
-  }, [otp, email, checkAuth, router]);
+  }, [otp, email, setUser, setStatus, router]);
 
   const handleResend = async () => {
     setIsResending(true);
@@ -125,7 +132,7 @@ function OtpContent() {
       }
       backHref="/login"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
         <div className="flex justify-center gap-3">
           {otp.map((digit, index) => (
             <input
@@ -143,14 +150,16 @@ function OtpContent() {
           ))}
         </div>
 
-        <LoadingButton
-          type="submit"
-          isLoading={isLoading}
-          loadingText="Verifying..."
-          disabled={otp.some((d) => !d)}
-        >
-          Verify
-        </LoadingButton>
+        <div className="mt-auto space-y-4">
+          <LoadingButton
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Verifying..."
+            disabled={otp.some((d) => !d)}
+          >
+            Verify
+          </LoadingButton>
+        </div>
       </form>
 
       <div className="mt-4 text-center">

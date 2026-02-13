@@ -19,6 +19,7 @@ import {
   SpinnerGapIcon,
 } from "@phosphor-icons/react";
 import Image from "next/image";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function CreatePostPage() {
         content: content.trim(),
         visibility: "public",
       });
-      await queryClient.invalidateQueries({ queryKey: ["feed"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.feed.all });
       toast.success("Post created!");
       router.push("/");
     } catch (error) {

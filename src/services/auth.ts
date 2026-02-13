@@ -40,10 +40,19 @@ export const authService = {
     throw new Error(response.data.message || "Verification failed");
   },
 
-  async completeProfile(data: ProfileCompleteRequest): Promise<boolean> {
-    const response = await api.post("/auth/profile/complete", data);
+  async completeProfile(data: ProfileCompleteRequest, avatar?: File): Promise<User> {
+    const formData = new FormData();
+    formData.append("username", data.username);
+    formData.append("display_name", data.display_name);
+    formData.append("bio", data.bio);
+    if (avatar) {
+      formData.append("avatar", avatar);
+    }
+    const response = await api.post("/auth/profile/complete", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     if (response.data.success) {
-      return true;
+      return response.data.data as User;
     }
     throw new Error(response.data.message || "Profile completion failed");
   },

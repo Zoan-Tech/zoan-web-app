@@ -9,6 +9,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
+import { queryKeys } from "@/lib/query-keys";
 
 // const tabs = ["Feed", "Thesis", "Market"] as const;
 const tabs = ["Feed"] as const;
@@ -25,7 +26,7 @@ export default function HomePage() {
     isFetchingNextPage,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["feed"],
+    queryKey: queryKeys.feed.list(),
     queryFn: async ({ pageParam = 1 }) => {
       const response = await feedService.getFeed(pageParam, 20);
       return response;
@@ -69,7 +70,7 @@ export default function HomePage() {
     <AppShell>
       {/* Header */}
       <PageHeader>
-        <nav className="flex gap-6">
+        <nav className="flex gap-6 justify-center">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -113,7 +114,12 @@ export default function HomePage() {
         ) : (
           <>
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} onDelete={() => refetch()} />
+              <PostCard
+                key={post.id}
+                post={post}
+                onUpdate={handlePostUpdate}
+                onDelete={() => refetch()}
+              />
             ))}
             {isFetchingNextPage && <LoadingSpinner size="md" />}
           </>

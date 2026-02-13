@@ -1,4 +1,5 @@
 export * from "./user-avatar";
+export * from "./user-avatar-with-follow";
 export * from "./verified-badge";
 export * from "./loading-spinner";
 export * from "./empty-state";

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import {
   HeartIcon,
@@ -115,7 +115,10 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0">
-          <UserAvatar user={post.user} size="md" />
+          <UserAvatarWithFollow
+            user={post.user}
+            size="md"
+          />
         </div>
 
         {/* Content */}

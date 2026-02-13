@@ -14,7 +14,7 @@ export const agentService = {
   },
 
   async getPairingState(agentId: string): Promise<PairingState> {
-    const response = await api.get(`/pairing/${agentId}`);
+    const response = await api.get(`/agents/pairing/${agentId}`);
     return response.data.data;
   },
 
@@ -22,7 +22,7 @@ export const agentService = {
     agentId: string,
     step: PairingStep
   ): Promise<PairingState> {
-    const response = await api.post("/pairing/step", {
+    const response = await api.post("/agents/pairing/step", {
       agent_id: agentId,
       step,
     });

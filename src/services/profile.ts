@@ -21,7 +21,21 @@ export const profileService = {
     throw new Error(response.data.message || "Failed to fetch profile");
   },
 
-  async updateProfile(data: UpdateProfileRequest): Promise<User> {
+  async updateProfile(data: UpdateProfileRequest, avatar?: File): Promise<User> {
+    if (avatar) {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined) formData.append(key, value);
+      });
+      formData.append("avatar", avatar);
+      const response = await api.put("/users/me", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || "Failed to update profile");
+    }
     const response = await api.put("/users/me", data);
     if (response.data.success) {
       return response.data.data;
