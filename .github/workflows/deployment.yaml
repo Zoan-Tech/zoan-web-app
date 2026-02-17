@@ -1,0 +1,46 @@
+name: Deploy to VPS with Git Commit Tag
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get short commit SHA
+        id: vars
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: 🔑 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🚀 Pull latest code & build/run Docker on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/zoan-web-app
+
+            echo "Fetching latest changes..."
+            git fetch origin main
+            git checkout main
+            git pull origin main
+
+            COMMIT_ID=$(git rev-parse --short HEAD)
+            echo "Building Docker image with tag: zoan-web-app:${COMMIT_ID}"
+            docker build --no-cache -t zoan-web-app:${COMMIT_ID} .
+
+            echo "Stopping previous container..."
+            docker stop zoan-web-app || true
+            docker rm zoan-web-app || true
+
+            echo "Running new container..."
+            docker run -d --name zoan-web-app -p zoan-web-app:${COMMIT_ID} --network zoan-network
