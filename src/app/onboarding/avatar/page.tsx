@@ -95,7 +95,7 @@ function AvatarContent() {
 
       // Single call to complete profile with all collected data
       const user = await authService.completeProfile(
-        { username, display_name: displayName, bio: "" },
+        { username, display_name: displayName },
         avatarFile
       );
 

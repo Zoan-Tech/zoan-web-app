@@ -45,7 +45,7 @@ export interface User {
 export interface ProfileCompleteRequest {
   username: string;
   display_name: string;
-  bio: string;
+  // bio: string;
 }
 
 export interface RefreshTokenRequest {
