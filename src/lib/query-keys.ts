@@ -50,6 +50,13 @@ export const queryKeys = {
     all: ["commentReplies"] as const,
     byCommentId: (commentId: string) => [...queryKeys.commentReplies.all, commentId] as const,
   },
+
+  // Notification queries
+  notifications: {
+    all: ["notifications"] as const,
+    list: (type?: string) => [...queryKeys.notifications.all, "list", type] as const,
+    unreadCount: () => [...queryKeys.notifications.all, "unreadCount"] as const,
+  },
 } as const;
 
 /**
