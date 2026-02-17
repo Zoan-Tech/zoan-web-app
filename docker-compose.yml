@@ -1,0 +1,17 @@
+services:
+  zoan-web-app:
+    image: zoan-web-app:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 0.5
+    networks:
+      - zoan-network
+
+networks:
+  zoan-network:
+    external: true
