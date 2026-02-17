@@ -5,6 +5,7 @@ import { PrivyProvider } from "./privy-provider";
 import { QueryProvider } from "./query-provider";
 import { AuthProvider } from "./auth-provider";
 import { WalletProvider } from "./wallet-provider";
+import { FcmProvider } from "./fcm-provider";
 
 interface Props {
   children: React.ReactNode;
@@ -16,11 +17,14 @@ export function Providers({ children }: Props) {
       <PrivyProvider>
         <AuthProvider>
           <WalletProvider>
-            {children}
-            <Toaster position="top-center" richColors />
+            <FcmProvider>
+              {children}
+            </FcmProvider>
+            <Toaster position="bottom-right" richColors />
           </WalletProvider>
         </AuthProvider>
       </PrivyProvider>
     </QueryProvider>
   );
 }
+

@@ -28,7 +28,7 @@ export const authService = {
       fingerprint: getFingerprint(),
     };
     const response = await api.post("/auth/login/verify", request);
-    
+
     if (response.data.success) {
       const data = response.data.data as VerifyLoginResponse;
       setAccessToken(data.token.access_token);
@@ -44,10 +44,10 @@ export const authService = {
     const formData = new FormData();
     formData.append("username", data.username);
     formData.append("display_name", data.display_name);
-    formData.append("bio", data.bio);
-    if (avatar) {
-      formData.append("avatar", avatar);
-    }
+    // formData.append("bio", data.bio);
+    // if (avatar) {
+    //   formData.append("avatar", avatar);
+    // }
     const response = await api.post("/auth/profile/complete", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
