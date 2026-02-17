@@ -43,4 +43,4 @@ jobs:
             docker rm zoan-web-app || true
 
             echo "Running new container..."
-            docker run -d --name zoan-web-app -p zoan-web-app:${COMMIT_ID}
+            docker run -d --name zoan-web-app -p zoan-web-app:${COMMIT_ID} --network zoan-network
