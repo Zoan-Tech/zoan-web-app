@@ -35,6 +35,7 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
+# .env must exist in build context for NEXT_PUBLIC_* vars
 COPY .env .env
 
 RUN \
@@ -49,7 +50,6 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-RUN rm .env
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -63,7 +63,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.env ./.env
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
