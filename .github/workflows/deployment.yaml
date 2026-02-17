@@ -3,7 +3,7 @@ name: Deploy to VPS with Git Commit Tag
 on:
   push:
     branches:
-      - feat/create_ci_cd
+      - main
 
 jobs:
   deploy:
@@ -30,9 +30,9 @@ jobs:
             cd ~/zoan-web-app
 
             echo "Fetching latest changes..."
-            git fetch origin feat/create_ci_cd
-            git checkout feat/create_ci_cd
-            git pull origin feat/create_ci_cd
+            git fetch origin main
+            git checkout main
+            git pull origin main
 
             COMMIT_ID=$(git rev-parse --short HEAD)
             echo "Building Docker image with tag: zoan-web-app:${COMMIT_ID}"
@@ -43,4 +43,4 @@ jobs:
             docker rm zoan-web-app || true
 
             echo "Running new container..."
-            docker run -d --name zoan-web-app -p 3000:3000 zoan-web-app:${COMMIT_ID}
+            docker run -d --name zoan-web-app -p zoan-web-app:${COMMIT_ID}
