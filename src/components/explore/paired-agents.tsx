@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useInstalledAgents } from "@/hooks/useAgents";
+import { useInstalledAgents } from "@/hooks/use-agents";
 import { getAgentName } from "@/lib/agents";
 
 const COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];

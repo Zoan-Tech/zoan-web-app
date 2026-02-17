@@ -9,40 +9,76 @@ import { AppShell } from "@/components/layout";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
-import { ActionCard } from "@/components/ui/action-card";
-import { SectionHeader } from "@/components/ui/section-header";
 import { SUPPORTED_CHAINS } from "@/types/wallet";
 import { useWalletStore } from "@/stores/wallet";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import {
-  CopyIcon,
-  ArrowSquareOutIcon,
-  PaperPlaneTiltIcon,
-  ArrowDownLeftIcon,
+  ArrowLineUpIcon,
+  ArrowLineDownIcon,
   ArrowsLeftRightIcon,
-  HandCoinsIcon,
-  CaretDownIcon,
+  BankIcon,
   CheckIcon,
-  CaretLeftIcon
+  CaretLeftIcon,
+  CaretRightIcon,
+  CaretDownIcon,
 } from "@phosphor-icons/react";
-import { toast } from "sonner";
 import { formatUsd } from "@/services/token-price";
+
+interface TokenRowProps {
+  name: string;
+  balance: string;
+  symbol: string;
+  usdValue: number;
+  logoUrl?: string;
+  isLoading?: boolean;
+}
+
+function TokenRow({ name, balance, symbol, usdValue, logoUrl, isLoading }: TokenRowProps) {
+  return (
+    <div className="flex items-center justify-between px-4 py-1">
+      <div className="flex items-center gap-3">
+        {logoUrl ? (
+          <Image
+            src={logoUrl}
+            alt={name}
+            width={44}
+            height={44}
+            className="rounded-md object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-gray-100">
+            <span className="text-base font-bold text-gray-600">{name[0]}</span>
+          </div>
+        )}
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{name}</p>
+          <p className="text-xs text-gray-400">
+            {isLoading ? "—" : `${balance} ${symbol}`}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold text-gray-900">
+          {isLoading ? "—" : formatUsd(usdValue)}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function WalletPage() {
   const { wallets } = useWallets();
   const { exportWallet } = useExportWallet();
   const { isInitialized, isInitializing, error } = useWalletStore();
   const router = useRouter();
-  const [selectedChainId, setSelectedChainId] = useState(8453); // Base by default
+  const [selectedChainId, setSelectedChainId] = useState(8453);
   const [showChainSelector, setShowChainSelector] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-  const [showAllTokens, setShowAllTokens] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
 
   const mainnets = SUPPORTED_CHAINS.filter((c) => !c.is_testnet);
   const testnets = SUPPORTED_CHAINS.filter((c) => c.is_testnet);
 
-  // Get embedded wallet
   const embeddedWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"
   );
@@ -51,41 +87,36 @@ export default function WalletPage() {
     (chain) => chain.id === selectedChainId
   );
 
-  // Fetch real token balances from Alchemy
   const { nativeBalance, nativeUsdValue, tokens, isLoading: isBalanceLoading } =
     useTokenBalances(embeddedWallet?.address, selectedChainId);
 
-  const handleCopyAddress = async () => {
-    if (!embeddedWallet?.address) return;
+  const totalUsdValue =
+    nativeUsdValue + tokens.reduce((sum, t) => sum + (t.usd_value || 0), 0);
 
-    try {
-      await navigator.clipboard.writeText(embeddedWallet.address);
-      setIsCopied(true);
-      toast.success("Address copied!");
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy address");
-    }
-  };
+  const header = (
+    <div className="flex w-full items-center">
+      <button
+        onClick={() => router.back()}
+        className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
+      >
+        <CaretLeftIcon className="h-4 w-4" weight="bold" />
+      </button>
+      <span className="mx-auto text-sm font-medium text-gray-900">Wallet</span>
+    </div>
+  );
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  if (isInitializing || !isInitialized) {
+  if (isInitializing || !isInitialized || !embeddedWallet) {
     return (
       <AppShell>
-        <PageHeader>
-          <div className="flex w-full items-center">
-            <button
-              onClick={() => router.back()}
-              className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
-            >
-              <CaretLeftIcon className="h-4 w-4" weight="bold" />
-            </button>
-            <span className="mx-auto text-sm font-medium text-gray-900">Wallet</span>
+        <PageHeader>{header}</PageHeader>
+        <PageContent>
+          <div className="flex flex-col items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-sm text-gray-500">
+              {!isInitialized ? "Initializing wallet..." : "Loading wallet..."}
+            </p>
           </div>
-        </PageHeader>
+        </PageContent>
       </AppShell>
     );
   }
@@ -93,264 +124,220 @@ export default function WalletPage() {
   if (error) {
     return (
       <AppShell>
-        <PageHeader>
-          <div className="flex w-full items-center">
-            <button
-              onClick={() => router.back()}
-              className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
-            >
-              <CaretLeftIcon className="h-4 w-4" weight="bold" />
-            </button>
-            <span className="mx-auto text-sm font-medium text-gray-900">Wallet</span>
-          </div>
-        </PageHeader>
+        <PageHeader>{header}</PageHeader>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      {/* Header */}
-      <PageHeader>
-        <div className="flex w-full items-center">
-          <button
-            onClick={() => router.back()}
-            className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
-          >
-            <CaretLeftIcon className="h-4 w-4" weight="bold" />
-          </button>
-          <span className="mx-auto text-sm font-medium text-gray-900">Wallet</span>
-        </div>
-      </PageHeader>
+      <PageHeader>{header}</PageHeader>
 
       <PageContent>
-        <div className="p-4">
-          {/* Wallet Card */}
-          <div className="relative">
-            {/* Chain Selector — outside overflow-hidden so dropdown isn't clipped */}
-            <div className="absolute left-6 top-6 z-20">
-              <button
-                onClick={() => setShowChainSelector(!showChainSelector)}
-                className="flex items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-sm text-white backdrop-blur-sm transition-colors hover:bg-white/30"
-              >
-                {selectedChain?.name}
-                <CaretDownIcon className="h-4 w-4" />
+        <div className="space-y-3 p-4">
+
+          {/* Balance Card */}
+          <div className="rounded-2xl">
+            <p className="text-xs font-semibold text-gray-900">Total Balance</p>
+            <p className="mt-1 text-4xl tracking-tight text-gray-900">
+              {isBalanceLoading ? "—" : formatUsd(totalUsdValue)}
+            </p>
+
+            <div className="mt-4 flex gap-2">
+              {/* Deposit */}
+              <button className="flex-1 rounded-md bg-gray-900 h-8.75 text-sm font-semibold text-white transition-colors hover:bg-gray-800">
+                Deposit
               </button>
 
-              {showChainSelector && (
-                <div className="absolute left-0 top-full z-30 mt-2 max-h-80 w-52 overflow-y-auto rounded-xl bg-white py-2 shadow-lg">
-                  <p className="px-4 py-1 text-xs font-semibold uppercase text-gray-400">Mainnets</p>
-                  {mainnets.map((chain) => (
-                    <button
-                      key={chain.id}
-                      onClick={() => {
-                        setSelectedChainId(chain.id);
-                        setShowChainSelector(false);
-                      }}
-                      className="flex w-full items-center justify-between px-4 py-2 text-left text-gray-700 hover:bg-gray-50"
-                    >
-                      <span>{chain.name}</span>
-                      {chain.id === selectedChainId && (
-                        <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
-                      )}
-                    </button>
-                  ))}
-                  <div className="my-1 border-t border-gray-100" />
-                  <p className="px-4 py-1 text-xs font-semibold uppercase text-gray-400">Testnets</p>
-                  {testnets.map((chain) => (
-                    <button
-                      key={chain.id}
-                      onClick={() => {
-                        setSelectedChainId(chain.id);
-                        setShowChainSelector(false);
-                      }}
-                      className="flex w-full items-center justify-between px-4 py-2 text-left text-gray-700 hover:bg-gray-50"
-                    >
-                      <span>{chain.name}</span>
-                      {chain.id === selectedChainId && (
-                        <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              {/* Network selector */}
+              <div className="relative flex-1">
+                <button
+                  onClick={() => setShowChainSelector(!showChainSelector)}
+                  className="flex w-full h-8.75 items-center justify-center gap-1.5 rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  {selectedChain?.logo_url ? (
+                    <Image
+                      src={selectedChain.logo_url}
+                      alt={selectedChain.name}
+                      width={16}
+                      height={16}
+                      className="rounded"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="h-4 w-4 shrink-0 rounded bg-gray-300" />
+                  )}
+                  <span>{selectedChain?.name ?? "Network"}</span>
+                  <CaretDownIcon className="h-3.5 w-3.5 text-gray-400" />
+                </button>
 
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#27CEC5] to-[#1a9e97] p-6 text-white">
-              {/* Spacer for chain selector button */}
-              <div className="mb-4 h-8" />
-
-              {/* Balance */}
-              <div className="mb-6">
-                <p className="text-sm text-white/70">Total Balance</p>
-                <p className="text-3xl font-bold">
-                  {isBalanceLoading ? "..." : nativeBalance} {selectedChain?.symbol}
-                </p>
-                <p className="text-sm text-white/70">{formatUsd(nativeUsdValue)} USD</p>
+                {showChainSelector && (
+                  <div className="absolute right-0 top-full z-30 mt-2 max-h-80 w-52 overflow-y-auto rounded-md bg-white py-2 shadow-lg ring-1 ring-black/5">
+                    <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Mainnets
+                    </p>
+                    {mainnets.map((chain) => (
+                      <button
+                        key={chain.id}
+                        onClick={() => {
+                          setSelectedChainId(chain.id);
+                          setShowChainSelector(false);
+                        }}
+                        className="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          {chain.logo_url ? (
+                            <Image
+                              src={chain.logo_url}
+                              alt={chain.name}
+                              width={18}
+                              height={18}
+                              className="rounded"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="h-4.5 w-4.5 rounded bg-gray-200" />
+                          )}
+                          <span>{chain.name}</span>
+                        </div>
+                        {chain.id === selectedChainId && (
+                          <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
+                        )}
+                      </button>
+                    ))}
+                    <div className="my-1 border-t border-gray-100" />
+                    <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Testnets
+                    </p>
+                    {testnets.map((chain) => (
+                      <button
+                        key={chain.id}
+                        onClick={() => {
+                          setSelectedChainId(chain.id);
+                          setShowChainSelector(false);
+                        }}
+                        className="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          {chain.logo_url ? (
+                            <Image
+                              src={chain.logo_url}
+                              alt={chain.name}
+                              width={18}
+                              height={18}
+                              className="rounded"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="h-4.5 w-4.5 rounded-md bg-gray-200" />
+                          )}
+                          <span>{chain.name}</span>
+                        </div>
+                        {chain.id === selectedChainId && (
+                          <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Address */}
-              {embeddedWallet && (
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-white/20 px-3 py-1 text-sm">
-                    {formatAddress(embeddedWallet.address)}
-                  </span>
-                  <button
-                    onClick={handleCopyAddress}
-                    className="rounded-full p-1.5 transition-colors hover:bg-white/20"
-                  >
-                    {isCopied ? (
-                      <CheckIcon className="h-4 w-4" />
-                    ) : (
-                      <CopyIcon className="h-4 w-4" />
-                    )}
-                  </button>
-                  <a
-                    href={`${selectedChain?.explorer_url}/address/${embeddedWallet.address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full p-1.5 transition-colors hover:bg-white/20"
-                  >
-                    <ArrowSquareOutIcon className="h-4 w-4" />
-                  </a>
-                </div>
-              )}
-
-              {/* Decorative circles */}
-              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-              <div className="absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-white/5" />
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="mt-6 grid grid-cols-4 gap-3">
-            <ActionCard
-              icon={<PaperPlaneTiltIcon className="h-5 w-5 text-[#27CEC5]" />}
-              label="Send"
-              onClick={() => router.push(`/wallet/send?chainId=${selectedChainId}`)}
-            />
-            <ActionCard
-              icon={<ArrowDownLeftIcon className="h-5 w-5 text-[#27CEC5]" />}
-              label="Receive"
-              onClick={() => setShowReceiveModal(true)}
-            />
-            <ActionCard
-              icon={<ArrowsLeftRightIcon className="h-5 w-5 text-[#27CEC5]" />}
-              label="Swap"
-              disabled
-            />
-            <ActionCard
-              icon={<HandCoinsIcon className="h-5 w-5 text-[#27CEC5]" />}
-              label="Request"
-              disabled
-            />
-          </div>
-
-          {/* Tokens Section */}
-          <div className="mt-6">
-            <SectionHeader
-              title="Tokens"
-              actionLabel={showAllTokens ? "Show Less" : "View All"}
-              onAction={tokens.length > 3 ? () => setShowAllTokens(!showAllTokens) : undefined}
-            />
-
-            <div className="rounded-2xl bg-white shadow-sm">
-              {/* Native Token for selected chain */}
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                    <span className="text-lg font-bold text-gray-700">
-                      {selectedChain?.symbol[0]}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {selectedChain?.symbol}
-                    </p>
-                    <p className="text-sm text-gray-500">{selectedChain?.name}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-gray-900">
-                    {isBalanceLoading ? "..." : nativeBalance}
-                  </p>
-                  <p className="text-sm text-gray-500">{formatUsd(nativeUsdValue)}</p>
-                </div>
-              </div>
-
-              {/* ERC20 tokens on selected chain */}
-              {(showAllTokens ? tokens : tokens.slice(0, 3)).map((token) => (
-                <div
-                  key={token.address}
-                  className="flex items-center justify-between border-t border-gray-50 p-4"
+          <div className="rounded-2xl mt-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Quick Actions</h2>
+              <CaretRightIcon className="h-4 w-4 text-gray-400" />
+            </div>
+            <div className="flex justify-center gap-4">
+              {[
+                {
+                  icon: <ArrowLineDownIcon className="h-5 w-5 font-semibold" />,
+                  label: "Receive",
+                  onClick: () => setShowReceiveModal(true),
+                  disabled: false,
+                },
+                {
+                  icon: <ArrowLineUpIcon className="h-5 w-5 font-semibold" />,
+                  label: "Send",
+                  onClick: () =>
+                    router.push(`/wallet/send?chainId=${selectedChainId}`),
+                  disabled: false,
+                },
+                {
+                  icon: <ArrowsLeftRightIcon className="h-5 w-5 font-semibold" />,
+                  label: "Swap",
+                  onClick: undefined,
+                  disabled: true,
+                },
+                {
+                  icon: <BankIcon className="h-5 w-5 font-semibold" />,
+                  label: "Request",
+                  onClick: undefined,
+                  disabled: true,
+                },
+              ].map(({ icon, label, onClick, disabled }) => (
+                <button
+                  key={label}
+                  onClick={onClick}
+                  disabled={disabled}
+                  className="flex flex-col items-center gap-1 disabled:opacity-40"
                 >
-                  <div className="flex items-center gap-3">
-                    {token.logo_url ? (
-                      <Image
-                        src={token.logo_url}
-                        alt={token.symbol}
-                        width={40}
-                        height={40}
-                        className="rounded-full"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                        <span className="text-lg font-bold text-gray-700">
-                          {token.symbol[0]}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-gray-900">{token.symbol}</p>
-                      <p className="text-sm text-gray-500">{token.name}</p>
-                    </div>
+                  <div className="flex w-18.75 h-15 items-center justify-center rounded-md bg-[#F7F9F9F7] text-gray-900 transition-colors hover:bg-primary/20">
+                    {icon}
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">{token.balance}</p>
-                    <p className="text-sm text-gray-500">{formatUsd(token.usd_value)}</p>
-                  </div>
-                </div>
+                  <span className="text-xs font-semibold text-gray-900">{label}</span>
+                </button>
               ))}
-
-              {/* Loading indicator */}
-              {isBalanceLoading && (
-                <div className="flex items-center justify-center border-t border-gray-50 py-3">
-                  <LoadingSpinner size="sm" />
-                  <span className="ml-2 text-sm text-gray-400">Loading balances...</span>
-                </div>
-              )}
-
-              {/* Empty state when no ERC20 tokens */}
-              {!isBalanceLoading && tokens.length === 0 && (
-                <div className="border-t border-gray-50 py-6 text-center">
-                  <p className="text-sm text-gray-400">No other tokens found on {selectedChain?.name}</p>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div className="mt-6">
-            <SectionHeader title="Recent Activity" onAction={() => {}} />
-
-            <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-              <p className="text-gray-500">No recent transactions</p>
+          {/* Token List */}
+          <div className="rounded-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Token</h2>
+              <CaretRightIcon className="h-4 w-4 text-gray-400" />
             </div>
-          </div>
 
-          {/* Export Wallet */}
-          <div className="mt-6">
-            <button
-              onClick={exportWallet}
-              className="w-full rounded-xl border border-gray-200 py-3 text-center font-medium text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              Export Wallet
-            </button>
+            {/* Native token */}
+            <TokenRow
+              name={selectedChain?.name || ""}
+              balance={nativeBalance}
+              symbol={selectedChain?.symbol || ""}
+              usdValue={nativeUsdValue}
+              isLoading={isBalanceLoading}
+            />
+
+            {/* ERC20 tokens */}
+            {tokens.map((token) => (
+              <TokenRow
+                key={token.address}
+                name={token.name}
+                balance={token.balance}
+                symbol={token.symbol}
+                usdValue={token.usd_value}
+                logoUrl={token.logo_url}
+              />
+            ))}
+
+            {isBalanceLoading && (
+              <div className="flex items-center justify-center border-t border-gray-50 py-4">
+                <LoadingSpinner size="sm" />
+                <span className="ml-2 text-sm text-gray-400">Loading balances...</span>
+              </div>
+            )}
+
+            {!isBalanceLoading && tokens.length === 0 && (
+              <div className="border-t border-gray-50 py-6 text-center">
+                <p className="text-sm text-gray-400">
+                  No other tokens on {selectedChain?.name}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Receive Modal */}
         {embeddedWallet && selectedChain && (
           <ReceiveModal
             open={showReceiveModal}

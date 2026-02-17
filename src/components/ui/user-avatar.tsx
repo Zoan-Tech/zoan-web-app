@@ -31,16 +31,20 @@ interface UserAvatarProps {
 
 export function UserAvatar({ user, size = "md", className, showProfile = true }: UserAvatarProps) {
   const [showModal, setShowModal] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const { px, text } = sizeMap[size];
   const initial = (user.display_name || user.username || "U")[0].toUpperCase();
 
-  const content = user.avatar_url ? (
+  const hasImageError = user.avatar_url === failedUrl;
+
+  const content = user.avatar_url && !hasImageError ? (
     <Image
       src={user.avatar_url}
       alt={user.display_name || "User"}
       width={px}
       height={px}
       className="h-full w-full object-cover"
+      onError={() => setFailedUrl(user.avatar_url || null)}
     />
   ) : (
     <div
@@ -73,7 +77,7 @@ export function UserAvatar({ user, size = "md", className, showProfile = true }:
         )}
       </div>
 
-      {showModal && user.avatar_url && (
+      {showModal && user.avatar_url && !hasImageError && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
           onClick={() => setShowModal(false)}
@@ -91,6 +95,7 @@ export function UserAvatar({ user, size = "md", className, showProfile = true }:
               width={512}
               height={512}
               className="max-h-[85vh] w-auto rounded-lg object-contain"
+              onError={() => setFailedUrl(user.avatar_url || null)}
             />
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useSubmitStep } from "@/hooks/usePairing";
+import { useSubmitStep } from "@/hooks/use-pairing";
 import type { PairingStep, ApiCallPayload } from "@/lib/pairing";
 
 interface Props {

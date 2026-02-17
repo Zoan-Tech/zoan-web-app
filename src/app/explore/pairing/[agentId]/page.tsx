@@ -3,7 +3,7 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePairingState } from "@/hooks/usePairing";
+import { usePairingState } from "@/hooks/use-pairing";
 import { PairingFlow } from "@/components/explore/pairing-flow";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeftIcon } from "@phosphor-icons/react";

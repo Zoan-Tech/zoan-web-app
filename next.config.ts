@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
         hostname: "play-lh.googleusercontent.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "s2.coinmarketcap.com",
+        pathname: "/**",
+      },
     ],
   },
   // Suppress hydration warnings in dev (for Privy)

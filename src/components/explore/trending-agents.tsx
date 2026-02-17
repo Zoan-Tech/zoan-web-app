@@ -1,6 +1,6 @@
 "use client";
 
-import { useTrendingAgents } from "@/hooks/useAgents";
+import { useTrendingAgents } from "@/hooks/use-agents";
 import { AgentCard } from "./agent-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 

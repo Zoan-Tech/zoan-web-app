@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useSubmitStep } from "@/hooks/usePairing";
+import { useSubmitStep } from "@/hooks/use-pairing";
 import { useWallets } from "@privy-io/react-auth";
 import { createWalletClient, custom, recoverTypedDataAddress } from "viem";
 import { arbitrumSepolia } from "viem/chains";
