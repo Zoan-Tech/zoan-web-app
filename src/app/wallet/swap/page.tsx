@@ -8,12 +8,16 @@ import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { SendForm } from "@/components/wallet/send-form";
+import { SwapForm } from "@/components/wallet/swap-form";
 import { useWalletStore } from "@/stores/wallet";
 import { SUPPORTED_CHAINS } from "@/types/wallet";
-import { CaretLeftIcon, CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
+import {
+  CaretLeftIcon,
+  CaretDownIcon,
+  CheckIcon,
+} from "@phosphor-icons/react";
 
-function SendPageContent() {
+function SwapPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { wallets } = useWallets();
@@ -32,14 +36,14 @@ function SendPageContent() {
   );
 
   const header = (
-    <div className="relative flex w-full items-center">
+    <div className="flex w-full items-center">
       <button
         onClick={() => router.back()}
-        className="absolute left-0 p-1 text-gray-600 hover:text-gray-900"
+        className="absolute left-4 p-1 text-gray-600 hover:text-gray-900"
       >
         <CaretLeftIcon className="h-4 w-4" weight="bold" />
       </button>
-      <span className="mx-auto text-sm font-medium text-gray-900">Send</span>
+      <span className="mx-auto text-sm font-medium text-gray-900">Swap</span>
     </div>
   );
 
@@ -47,12 +51,10 @@ function SendPageContent() {
     return (
       <AppShell>
         <PageHeader>{header}</PageHeader>
-        <PageContent>
-          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
-            <LoadingSpinner size="lg" />
-            <p className="text-sm text-gray-500">Loading wallet...</p>
-          </div>
-        </PageContent>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+          <LoadingSpinner size="lg" />
+          <p className="text-sm text-gray-500">Loading wallet...</p>
+        </div>
       </AppShell>
     );
   }
@@ -76,7 +78,6 @@ function SendPageContent() {
             </div>
           </div>
         </PageContent>
-        
       </AppShell>
     );
   }
@@ -86,6 +87,7 @@ function SendPageContent() {
       <PageHeader>{header}</PageHeader>
       <PageContent>
         <div className="p-4 space-y-4">
+          {/* Chain selector */}
           <div className="relative">
             <button
               onClick={() => setShowChainSelector(!showChainSelector)}
@@ -185,8 +187,9 @@ function SendPageContent() {
             )}
           </div>
 
-          {/* Send Form */}
-          <SendForm
+          {/* Swap form — key resets all form state when chain changes */}
+          <SwapForm
+            key={selectedChainId}
             address={embeddedWallet.address}
             chainId={selectedChainId}
             chain={chain}
@@ -198,19 +201,19 @@ function SendPageContent() {
   );
 }
 
-export default function SendPage() {
+export default function SwapPage() {
   return (
     <Suspense
       fallback={
         <AppShell>
-          <PageHeader title="Send" />
+          <PageHeader title="Swap" />
           <div className="flex min-h-[60vh] items-center justify-center">
             <LoadingSpinner size="lg" />
           </div>
         </AppShell>
       }
     >
-      <SendPageContent />
+      <SwapPageContent />
     </Suspense>
   );
 }

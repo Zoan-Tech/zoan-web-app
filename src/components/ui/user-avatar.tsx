@@ -61,7 +61,7 @@ export function UserAvatar({ user, size = "md", className, showProfile = true }:
     <>
       <div
         className={cn(
-          "overflow-hidden rounded bg-gray-200 flex-shrink-0",
+          "overflow-hidden rounded bg-gray-200 shrink-0",
           !showProfile && user.avatar_url && "cursor-pointer",
           className
         )}

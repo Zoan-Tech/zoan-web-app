@@ -382,7 +382,12 @@ function InlineReplyContent({
 
 export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?: (commentId: string) => void }) {
   const router = useRouter();
+  const { user: currentUser } = useAuthStore();
   const { liked, likeCount, handleLike } = useCommentLike(comment);
+
+  const mergedComment = currentUser?.id === comment.user.id
+    ? { ...comment, user: { ...comment.user, ...currentUser } }
+    : comment;
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null);
 
   const handleDelete = async () => {
@@ -410,7 +415,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
       <div className="flex gap-3">
         <div className="flex w-10 flex-shrink-0 flex-col items-center">
           <UserAvatarWithFollow
-            user={comment.user}
+            user={mergedComment.user}
             size="md"
           />
           {showThreadLine && (
@@ -423,9 +428,9 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
             showThreadLine && "pb-3"
           )}
         >
-          <CommentHeader comment={comment} onContentClick={isClickable ? () => router.push(`/comment/${comment.id}`) : undefined} onDelete={handleDelete} />
+          <CommentHeader comment={mergedComment} onContentClick={isClickable ? () => router.push(`/comment/${mergedComment.id}`) : undefined} onDelete={handleDelete} />
           <CommentActions
-            comment={comment}
+            comment={mergedComment}
             liked={liked}
             likeCount={likeCount}
             onLike={handleLike}
@@ -436,13 +441,16 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
 
       {/* Inline reply rows */}
       {hasInlineReplies && replies.map((reply: Comment, i: number) => {
-        const replyClickable = reply.reply_count > 0;
+        const mergedReply = currentUser?.id === reply.user.id
+          ? { ...reply, user: { ...reply.user, ...currentUser } }
+          : reply;
+        const replyClickable = mergedReply.reply_count > 0;
         const isLastReply = i === replies.length - 1;
         return (
-          <div className="flex gap-3" key={reply.id}>
+          <div className="flex gap-3" key={mergedReply.id}>
             <div className="flex w-10 flex-shrink-0 flex-col items-center">
               <UserAvatarWithFollow
-                user={reply.user}
+                user={mergedReply.user}
                 size="md"
               />
               {!isLastReply && (
@@ -456,8 +464,8 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
               )}
             >
               <InlineReplyContent
-                comment={reply}
-                onContentClick={replyClickable ? () => router.push(`/comment/${reply.id}`) : undefined}
+                comment={mergedReply}
+                onContentClick={replyClickable ? () => router.push(`/comment/${mergedReply.id}`) : undefined}
                 onReplyClick={() => setReplyTarget(reply)}
                 onDelete={async () => {
                   try {

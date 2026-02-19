@@ -17,7 +17,14 @@ export const config = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
     vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "",
   },
+  zeroEx: {
+    apiKey: process.env.NEXT_PUBLIC_ZERO_X_API_KEY || "",
+  },
 };
+
+// ENI chain IDs mapped to their Uniswap v2-compatible router addresses.
+// Add entries here when a new ENI chain is supported.
+export const ENI_SWAP_ROUTERS: Record<number, string> = {};
 
 export const alchemyRpcUrls: Record<number, string> = {
   // Mainnets

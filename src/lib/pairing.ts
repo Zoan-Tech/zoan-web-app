@@ -4,6 +4,7 @@ export enum SignalType {
   ApiCall = "api_call",
   Message = "message",
   SignatureRequest = "signature_request",
+  PrivyDelegation = "privy_delegation",
   Complete = "complete",
 }
 
@@ -29,6 +30,7 @@ export interface PairingState {
   current_step: PairingStep | null;
   total_steps: number;
   completed_steps: PairingStep[];
+  status: "processing" | "done" | "failed";
 }
 
 export interface TransactionPayload {

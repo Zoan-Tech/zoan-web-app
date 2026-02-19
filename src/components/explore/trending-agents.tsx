@@ -8,7 +8,12 @@ export function TrendingAgents() {
   const { data: agents, isLoading, error } = useTrendingAgents();
 
   if (isLoading) return <LoadingSpinner size="md" />;
-  if (error || !agents?.length) return null;
+  if (error || !agents?.length) return (
+    <div className="px-4 pb-2 pt-4">
+      <h2 className="mb-3 text-sm font-semibold text-gray-900">Paired</h2>
+      <p className="text-sm text-gray-400">No trending agents</p>
+    </div>
+  );
 
   return (
     <div className="px-4 py-4">
