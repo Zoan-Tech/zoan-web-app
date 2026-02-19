@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
   },
   // Suppress hydration warnings in dev (for Privy)
   reactStrictMode: true,
+  devIndicators: false,
   output: "standalone",
 };
 

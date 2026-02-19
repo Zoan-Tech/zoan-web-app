@@ -5,8 +5,8 @@ export interface UpdateProfileRequest {
   username?: string;
   display_name?: string;
   bio?: string;
-  avatar_url?: string;
-  banner_url?: string;
+  avatar?: File;
+  banner?: File;
   location?: string;
   website?: string;
 }
@@ -16,29 +16,32 @@ export const profileService = {
     const endpoint = userId ? `/users/${userId}` : "/users/me";
     const response = await api.get(endpoint);
     if (response.data.success) {
-      return response.data.data;
+      const data = response.data.data;
+      return { ...data, id: data.user_id || data.id };
     }
     throw new Error(response.data.message || "Failed to fetch profile");
   },
 
-  async updateProfile(data: UpdateProfileRequest, avatar?: File): Promise<User> {
-    if (avatar) {
+  async updateProfile(data: UpdateProfileRequest): Promise<User> {
+    const hasFile = data.avatar instanceof File || data.banner instanceof File;
+    let payload: UpdateProfileRequest | FormData = data;
+
+    if (hasFile) {
       const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined) formData.append(key, value);
-      });
-      formData.append("avatar", avatar);
-      const response = await api.put("/users/me", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (response.data.success) {
-        return response.data.data;
-      }
-      throw new Error(response.data.message || "Failed to update profile");
+      if (data.display_name !== undefined) formData.append("display_name", data.display_name);
+      if (data.bio !== undefined) formData.append("bio", data.bio);
+      if (data.location !== undefined) formData.append("location", data.location);
+      if (data.website !== undefined) formData.append("website", data.website);
+      if (data.username !== undefined) formData.append("username", data.username);
+      if (data.avatar instanceof File) formData.append("avatar", data.avatar);
+      if (data.banner instanceof File) formData.append("banner", data.banner);
+      payload = formData;
     }
-    const response = await api.put("/users/me", data);
+
+    const response = await api.put("/users/me", payload, hasFile ? { headers: { "Content-Type": "multipart/form-data" } } : undefined);
     if (response.data.success) {
-      return response.data.data;
+      const data = response.data.data;
+      return { ...data, id: data.user_id || data.id };
     }
     throw new Error(response.data.message || "Failed to update profile");
   },
@@ -83,33 +86,5 @@ export const profileService = {
     } catch {
       return [];
     }
-  },
-
-  async uploadAvatar(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await api.post("/upload/avatar", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    if (response.data.success) {
-      return response.data.data.url;
-    }
-    throw new Error(response.data.message || "Failed to upload avatar");
-  },
-
-  async uploadBanner(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await api.post("/upload/banner", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    if (response.data.success) {
-      return response.data.data.url;
-    }
-    throw new Error(response.data.message || "Failed to upload banner");
   },
 };

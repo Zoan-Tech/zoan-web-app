@@ -28,4 +28,10 @@ export const agentService = {
     });
     return response.data.data;
   },
+
+  async unpairAgent(agentId: string): Promise<void> {
+    await api.delete(`/agents/kya`, {
+      data: { agent_id: agentId },
+    });
+  },
 };

@@ -35,7 +35,7 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ userId }: ProfileViewProps) {
-  const { user: currentUser, logout, setUser } = useAuthStore();
+  const { user: currentUser, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const { toggleFollow } = useFollowUser();
 
@@ -273,10 +273,7 @@ export function ProfileView({ userId }: ProfileViewProps) {
           open={showEditModal}
           onClose={() => setShowEditModal(false)}
           profile={profile}
-          onUpdated={(updatedUser) => {
-            if (currentUser) {
-              setUser({ ...currentUser, ...updatedUser });
-            }
+          onUpdated={() => {
             queryClient.invalidateQueries({ queryKey: queryKeys.profile.byUserId(targetUserId) });
           }}
         />

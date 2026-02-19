@@ -7,6 +7,7 @@ import { ConsentStep } from "./steps/consent-step";
 import { TransactionStep } from "./steps/transaction-step";
 import { SignatureStep } from "./steps/signature-step";
 import { ApiCallStep } from "./steps/api-call-step";
+import { PrivyDelegationStep } from "./steps/privy-delegation-step";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
@@ -21,7 +22,7 @@ interface Props {
 export function PairingFlow({ agentId, pairingState, onComplete }: Props) {
   const router = useRouter();
 
-  const complete = isComplete(pairingState);
+  const complete = isComplete(pairingState) || pairingState.status === "done";
 
   useEffect(() => {
     if (!complete) return;
@@ -71,6 +72,8 @@ export function PairingFlow({ agentId, pairingState, onComplete }: Props) {
         return "Signature";
       case SignalType.ApiCall:
         return "API Call";
+      case SignalType.PrivyDelegation:
+        return "Delegate Wallet";
       default:
         return "Pairing";
     }
@@ -104,6 +107,9 @@ export function PairingFlow({ agentId, pairingState, onComplete }: Props) {
         )}
         {step.signal_type === SignalType.ApiCall && (
           <ApiCallStep agentId={agentId} step={step} stepNumber={stepNumber} totalSteps={totalSteps} />
+        )}
+        {step.signal_type === SignalType.PrivyDelegation && (
+          <PrivyDelegationStep agentId={agentId} step={step} stepNumber={stepNumber} totalSteps={totalSteps} />
         )}
       </PageContent>
     </AppShell>

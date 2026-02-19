@@ -43,6 +43,7 @@ export interface Chain {
   explorer_url: string;
   logo_url?: string;
   is_testnet: boolean;
+  swap_router_address?: string; // ENI custom DEX router (Uniswap v2-compatible)
 }
 
 export const SUPPORTED_CHAINS: Chain[] = [

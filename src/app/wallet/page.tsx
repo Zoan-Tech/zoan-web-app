@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useWallets, useExportWallet } from "@privy-io/react-auth";
-import { ReceiveModal } from "@/components/wallet";
+import { useWallets } from "@privy-io/react-auth";
+import { ReceiveModal, TransactionHistoryModal } from "@/components/wallet";
 import { AppShell } from "@/components/layout";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,6 +21,7 @@ import {
   CaretLeftIcon,
   CaretRightIcon,
   CaretDownIcon,
+  ClockCounterClockwiseIcon,
 } from "@phosphor-icons/react";
 import { formatUsd } from "@/services/token-price";
 
@@ -69,12 +70,12 @@ function TokenRow({ name, balance, symbol, usdValue, logoUrl, isLoading }: Token
 
 export default function WalletPage() {
   const { wallets } = useWallets();
-  const { exportWallet } = useExportWallet();
   const { isInitialized, isInitializing, error } = useWalletStore();
   const router = useRouter();
   const [selectedChainId, setSelectedChainId] = useState(8453);
   const [showChainSelector, setShowChainSelector] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const mainnets = SUPPORTED_CHAINS.filter((c) => !c.is_testnet);
   const testnets = SUPPORTED_CHAINS.filter((c) => c.is_testnet);
@@ -102,6 +103,12 @@ export default function WalletPage() {
         <CaretLeftIcon className="h-4 w-4" weight="bold" />
       </button>
       <span className="mx-auto text-sm font-medium text-gray-900">Wallet</span>
+      <button
+        onClick={() => setShowHistoryModal(true)}
+        className="absolute right-4 p-1 text-gray-600 hover:text-gray-900"
+      >
+        <ClockCounterClockwiseIcon className="h-5 w-5" weight="bold" />
+      </button>
     </div>
   );
 
@@ -268,8 +275,9 @@ export default function WalletPage() {
                 {
                   icon: <ArrowsLeftRightIcon className="h-5 w-5 font-semibold" />,
                   label: "Swap",
-                  onClick: undefined,
-                  disabled: true,
+                  onClick: () =>
+                    router.push(`/wallet/swap?chainId=${selectedChainId}`),
+                  disabled: false,
                 },
                 {
                   icon: <BankIcon className="h-5 w-5 font-semibold" />,
@@ -342,6 +350,14 @@ export default function WalletPage() {
           <ReceiveModal
             open={showReceiveModal}
             onClose={() => setShowReceiveModal(false)}
+            address={embeddedWallet.address}
+            chain={selectedChain}
+          />
+        )}
+        {embeddedWallet && selectedChain && (
+          <TransactionHistoryModal
+            open={showHistoryModal}
+            onClose={() => setShowHistoryModal(false)}
             address={embeddedWallet.address}
             chain={selectedChain}
           />

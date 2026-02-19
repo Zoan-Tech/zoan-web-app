@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTokenBalances, type TokenWithPrice } from "@/hooks/use-token-balances";
 import { useGasEstimation, type GasEstimation } from "@/hooks/use-gas-estimation";
@@ -64,6 +64,18 @@ export function SendForm({
   const [gasEstimation, setGasEstimation] = useState<GasEstimation | null>(
     null
   );
+
+  const tokenSelectorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showTokenSelector) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tokenSelectorRef.current && !tokenSelectorRef.current.contains(e.target as Node)) {
+        setShowTokenSelector(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showTokenSelector]);
 
   // Get current token info
   const isNative = selectedToken === "native";
@@ -208,7 +220,7 @@ export function SendForm({
         <label className="block text-sm font-medium text-gray-700">
           Asset
         </label>
-        <div className="relative mt-1">
+        <div className="relative mt-1" ref={tokenSelectorRef}>
           <button
             onClick={() => setShowTokenSelector(!showTokenSelector)}
             className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition-colors hover:border-gray-300"

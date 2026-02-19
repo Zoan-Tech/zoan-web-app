@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "@/components/ui/modal";
-import { getNetworkColor } from "@/lib/wallet/network-colors";
 import type { Chain } from "@/types/wallet";
 import {
   CopyIcon,
@@ -54,11 +54,12 @@ export function ReceiveModal({
     <Modal open={open} onClose={onClose} title="Receive">
       {/* Network badge */}
       <div className="mb-4 flex justify-center">
-        <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700">
-          <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: getNetworkColor(chain.id) }}
-          />
+        <span className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700">
+          {chain.logo_url ? (
+            <Image src={chain.logo_url} alt={chain.name} width={16} height={16} className="rounded-md" unoptimized />
+          ) : (
+            <span className="h-2.5 w-2.5 rounded-md bg-gray-400" />
+          )}
           {chain.name}
         </span>
       </div>

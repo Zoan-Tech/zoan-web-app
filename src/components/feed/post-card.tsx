@@ -17,6 +17,7 @@ import { renderContentWithMentions } from "@/lib/render-mentions";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { feedService } from "@/services/feed";
+import { useAuthStore } from "@/stores/auth";
 import { toast } from "sonner";
 
 interface Props {
@@ -27,8 +28,13 @@ interface Props {
 
 export function PostCard({ post, onUpdate, onDelete }: Props) {
   const router = useRouter();
+  const { user: currentUser } = useAuthStore();
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
+
+  const displayUser = currentUser?.id === post.user.id
+    ? { ...post.user, ...currentUser }
+    : post.user;
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -116,7 +122,7 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
         {/* Avatar */}
         <div className="flex-shrink-0">
           <UserAvatarWithFollow
-            user={post.user}
+            user={displayUser}
             size="md"
           />
         </div>
@@ -126,19 +132,19 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
           {/* Header */}
           <div className="flex items-start gap-1">
             <Link
-              href={`/profile/${post.user.id}`}
+              href={`/profile/${displayUser.id}`}
               className="truncate font-semibold text-gray-900 hover:underline text-sm align-top"
             >
-              {post.user.display_name}
+              {displayUser.display_name}
             </Link>
-            {post.user.is_verified && <VerifiedBadge size="sm" />}
-            <span className="text-gray-500 text-[12px] align-top">@{post.user.username}</span>
+            {displayUser.is_verified && <VerifiedBadge size="sm" />}
+            <span className="text-gray-500 text-[12px] align-top">@{displayUser.username}</span>
             <div className="ml-auto justify-end flex items-center">
               <span className="p-1 text-gray-500 text-[12px]">
                 {formatRelativeTime(post.created_at)}
               </span>
               <MoreMenu
-                authorId={post.user.id}
+                authorId={displayUser.id}
                 onDelete={handleDelete}
                 copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
               />

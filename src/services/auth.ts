@@ -48,11 +48,16 @@ export const authService = {
     // if (avatar) {
     //   formData.append("avatar", avatar);
     // }
+    if (avatar) {
+      formData.append("avatar", avatar);
+    }
+    
     const response = await api.post("/auth/profile/complete", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     if (response.data.success) {
-      return response.data.data as User;
+      const data = response.data.data;
+      return { ...data, id: data.user_id || data.id };
     }
     throw new Error(response.data.message || "Profile completion failed");
   },

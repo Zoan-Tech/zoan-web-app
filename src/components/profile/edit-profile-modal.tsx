@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/ui/modal";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { profileService, UpdateProfileRequest } from "@/services/profile";
 import { User } from "@/types/auth";
+import { useAuthStore } from "@/stores/auth";
+import { queryKeys } from "@/lib/query-keys";
 import { CameraIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -28,7 +31,11 @@ export function EditProfileModal({
   const [website, setWebsite] = useState(profile.website || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const { user: currentUser, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +43,7 @@ export function EditProfileModal({
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
   };
@@ -43,6 +51,7 @@ export function EditProfileModal({
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setBannerFile(file);
       setBannerPreview(URL.createObjectURL(file));
     }
   };
@@ -56,24 +65,18 @@ export function EditProfileModal({
       if (bio !== (profile.bio || "")) updates.bio = bio;
       if (location !== (profile.location || "")) updates.location = location;
       if (website !== (profile.website || "")) updates.website = website;
-
-      // Upload avatar if changed
-      const avatarFile = avatarInputRef.current?.files?.[0];
-      if (avatarFile) {
-        const url = await profileService.uploadAvatar(avatarFile);
-        updates.avatar_url = url;
-      }
-
-      // Upload banner if changed
-      const bannerFile = bannerInputRef.current?.files?.[0];
-      if (bannerFile) {
-        const url = await profileService.uploadBanner(bannerFile);
-        updates.banner_url = url;
-      }
+      if (avatarFile) updates.avatar = avatarFile;
+      if (bannerFile) updates.banner = bannerFile;
 
       if (Object.keys(updates).length > 0) {
         const updatedUser = await profileService.updateProfile(updates);
+        setUser(updatedUser);
         onUpdated(updatedUser);
+        queryClient.invalidateQueries({ queryKey: queryKeys.feed.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.userPosts.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.post.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.comments.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.commentReplies.all });
         toast.success("Profile updated");
       }
 
@@ -91,7 +94,7 @@ export function EditProfileModal({
         {/* Banner */}
         <div className="relative -mx-6 -mt-6">
           <div
-            className="relative h-28 cursor-pointer overflow-hidden rounded-t-2xl bg-gradient-to-r from-[#27CEC5] to-[#20b5ad]"
+            className="relative h-28 cursor-pointer overflow-hidden rounded-t-2xl bg-linear-to-r from-[#27CEC5] to-[#20b5ad]"
             onClick={() => bannerInputRef.current?.click()}
           >
             {(bannerPreview || profile.banner_url) && (
@@ -131,7 +134,7 @@ export function EditProfileModal({
                 </div>
               ) : (
                 <UserAvatar
-                  user={profile}
+                  user={currentUser ?? profile}
                   size="xl"
                   className="border-4 border-white"
                   showProfile={false}
@@ -219,7 +222,7 @@ export function EditProfileModal({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full rounded bg-gray-900 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+          className="w-full rounded bg-primary py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50"
         >
           {saving ? "Saving..." : "Done"}
         </button>
