@@ -104,6 +104,39 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ---------- Token refresh queue (mutex) ----------
+// Only one refresh call runs at a time. Concurrent 401s queue behind the same
+// promise so we never fire multiple refresh requests in parallel.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function doRefresh(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    console.warn("[Auth] No refresh token found in localStorage — cannot refresh.");
+    return null;
+  }
+
+  console.info("[Auth] Refreshing access token…");
+
+  const response = await axios.post(`/api/auth/refresh`, {
+    refresh_token: refreshToken,
+    device_id: getDeviceId(),
+  });
+
+  const token = response.data?.data?.token ?? response.data?.token;
+  if (token?.access_token) {
+    setAccessToken(token.access_token);
+    if (token.refresh_token) {
+      setRefreshToken(token.refresh_token);
+    }
+    console.info("[Auth] Access token refreshed successfully.");
+    return token.access_token as string;
+  }
+
+  console.warn("[Auth] Refresh response did not contain a valid access_token.", response.data);
+  return null;
+}
+
 // Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -115,36 +148,30 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`/api/auth/refresh`, {
-            refresh_token: refreshToken,
-            device_id: getDeviceId(),
+      try {
+        // If a refresh is already in-flight, wait for it instead of starting a new one
+        if (!refreshPromise) {
+          refreshPromise = doRefresh().finally(() => {
+            refreshPromise = null;
           });
-
-          const token = response.data?.data?.token ?? response.data?.token;
-          if (token?.access_token) {
-            setAccessToken(token.access_token);
-            if (token.refresh_token) {
-              setRefreshToken(token.refresh_token);
-            }
-
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token.access_token}`;
-            }
-            return api(originalRequest);
-          }
-
-          // Refresh response didn't contain a valid token
-          handleUnauthorized();
-          return Promise.reject(error);
-        } catch (refreshError) {
-          handleUnauthorized();
-          return Promise.reject(refreshError);
         }
-      } else {
+
+        const newAccessToken = await refreshPromise;
+
+        if (newAccessToken) {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          }
+          return api(originalRequest);
+        }
+
+        // Refresh returned no token
         handleUnauthorized();
+        return Promise.reject(error);
+      } catch (refreshError) {
+        console.error("[Auth] Token refresh failed:", refreshError);
+        handleUnauthorized();
+        return Promise.reject(refreshError);
       }
     }
 

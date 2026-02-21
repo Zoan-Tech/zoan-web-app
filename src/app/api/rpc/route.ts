@@ -4,6 +4,20 @@ import { SUPPORTED_CHAINS } from "@/types/wallet";
 
 const RPC_TIMEOUT_MS = 10_000;
 
+// Only allow RPC methods the app actually uses.
+// This prevents abuse of the proxy for arbitrary blockchain queries.
+const ALLOWED_METHODS = new Set([
+  "eth_getBalance",
+  "eth_estimateGas",
+  "eth_gasPrice",
+  "eth_call",
+  "eth_sendTransaction",
+  "eth_getTransactionReceipt",
+  "alchemy_getTokenBalances",
+  "alchemy_getTokenMetadata",
+  "alchemy_getAssetTransfers",
+]);
+
 function fetchWithTimeout(url: string, body: string): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
@@ -29,6 +43,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "chainId and method are required" },
         { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_METHODS.has(method)) {
+      return NextResponse.json(
+        { error: `Method "${method}" is not allowed` },
+        { status: 403 }
       );
     }
 
