@@ -85,8 +85,7 @@ export function useGasEstimation(): UseGasEstimationResult {
           "0x" + gasCostWei.toString(16),
           18
         );
-        const gasCostUsd =
-          nativeUsdPrice * (Number(gasCostWei) / 1e18);
+        const gasCostUsd = nativeUsdPrice * (Number(gasCostWei / BigInt(1e18)));
 
         const result: GasEstimation = {
           gasLimit: gasLimitHex,
