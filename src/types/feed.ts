@@ -93,3 +93,22 @@ export interface CreateCommentRequest {
   parent_comment_id?: string;
   content: string;
 }
+
+// SSE Event Types
+export interface CommentEventData {
+  id: string;
+  post_id: string;
+  user: User;
+  content: string;
+  parent_comment_id?: string;
+  like_count?: number;
+  reply_count?: number;
+  is_liked?: boolean;
+  created_at?: string;
+  mentions?: Mention[];
+}
+
+export interface SSEStatus {
+  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  reconnectAttempts: number;
+}

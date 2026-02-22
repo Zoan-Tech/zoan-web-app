@@ -60,7 +60,7 @@ export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuPr
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
-              {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+              {item.icon && <span className="shrink-0">{item.icon}</span>}
               {item.label}
             </button>
           ))}

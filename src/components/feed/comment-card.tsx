@@ -58,7 +58,7 @@ function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment
           <MoreMenu
             authorId={comment.user.id}
             onDelete={onDelete}
-            copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/comment/${comment.id}`}
+            copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${comment.post_id}/comment/${comment.id}`}
           />
         </div>
       </div>
@@ -262,88 +262,90 @@ function ReplyModal({
         </div>
       }
     >
-      {/* Parent comment preview */}
-      <div className="flex gap-3">
-        <div className="flex w-10 flex-shrink-0 flex-col items-center">
-          <UserAvatarWithFollow
-            user={comment.user}
-            size="md"
-          />
-          <div className="mt-1 mb-1 w-[1px] flex-1 rounded-full bg-[#D1E9E8]" />
-        </div>
-        <div className="min-w-0 flex-1 pb-3">
-          <div className="flex items-center gap-1">
-            <span className="truncate text-sm font-semibold text-gray-900">
-              {comment.user.display_name}
-            </span>
-            {comment.user.is_verified && <VerifiedBadge size="sm" />}
-            <span className="text-[12px] text-gray-500">
-              @{comment.user.username}
-            </span>
+      <div className="max-h-[70vh] overflow-y-auto">
+        {/* Parent comment preview */}
+        <div className="flex gap-3">
+          <div className="flex w-10 shrink-0 flex-col items-center">
+            <UserAvatarWithFollow
+              user={comment.user}
+              size="md"
+            />
+            <div className="mt-1 mb-1 w-px flex-1 rounded-full bg-[#D1E9E8]" />
           </div>
-          <div className="mt-1 mb-4 text-[12px] text-gray-900">
-            {renderContentWithMentions(comment.content, comment.mentions)}
-          </div>
-        </div>
-      </div>
-
-      {/* Reply input row */}
-      <div className="flex gap-3">
-        <div className="flex w-10 flex-shrink-0 flex-col items-center">
-          <UserAvatar user={user} size="md" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <MentionHighlight
-                content={content}
-                placeholder={`Reply to @${comment.user.username}`}
-                className="min-h-[1.25rem] whitespace-nowrap text-[12px] leading-[1.5] text-gray-900"
-              />
-              <input
-                ref={setRef}
-                type="text"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={(e) => {
-                  if (handleKeyDown(e)) return;
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                className="absolute inset-0 w-full bg-transparent p-0 text-[12px] leading-[1.5] text-transparent caret-gray-900 outline-none"
-              />
-              <MentionDropdown
-                results={mentionResults}
-                selectedIndex={selectedIndex}
-                onSelect={selectMention}
-                visible={showMentions}
-              />
+          <div className="min-w-0 flex-1 pb-3">
+            <div className="flex items-center gap-1">
+              <span className="truncate text-sm font-semibold text-gray-900">
+                {comment.user.display_name}
+              </span>
+              {comment.user.is_verified && <VerifiedBadge size="sm" />}
+              <span className="text-[12px] text-gray-500">
+                @{comment.user.username}
+              </span>
             </div>
-            <button
-              onClick={handleSubmit}
-              disabled={!content.trim() || isSubmitting}
-              className="flex-shrink-0 rounded-full bg-[#27CEC5] px-4 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <SpinnerGapIcon className="h-4 w-4 animate-spin" />
-              ) : (
-                "Reply"
-              )}
-            </button>
+            <div className="mt-1 mb-4 text-[12px] text-gray-900">
+              {renderContentWithMentions(comment.content, comment.mentions)}
+            </div>
           </div>
-          <div className="mt-2 flex items-center gap-4">
-            {replyToolbarItems.map(({ icon: Icon, label }) => (
+        </div>
+
+        {/* Reply input row */}
+        <div className="flex gap-3">
+          <div className="flex w-10 shrink-0 flex-col items-center">
+            <UserAvatar user={user} size="md" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <MentionHighlight
+                  content={content}
+                  placeholder={`Reply to @${comment.user.username}`}
+                  className="min-h-5 whitespace-nowrap text-[12px] leading-normal text-gray-900"
+                />
+                <input
+                  ref={setRef}
+                  type="text"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (handleKeyDown(e)) return;
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  className="absolute inset-0 w-full bg-transparent p-0 text-[12px] leading-normal text-transparent caret-gray-900 outline-none"
+                />
+                <MentionDropdown
+                  results={mentionResults}
+                  selectedIndex={selectedIndex}
+                  onSelect={selectMention}
+                  visible={showMentions}
+                />
+              </div>
               <button
-                key={label}
-                type="button"
-                className="text-gray-400 transition-colors hover:text-gray-600"
-                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleSubmit}
+                disabled={!content.trim() || isSubmitting}
+                className="shrink-0 rounded-full bg-[#27CEC5] px-4 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:opacity-50"
               >
-                <Icon className="h-5 w-5" />
+                {isSubmitting ? (
+                  <SpinnerGapIcon className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Reply"
+                )}
               </button>
-            ))}
+            </div>
+            <div className="mt-2 flex items-center gap-4">
+              {replyToolbarItems.map(({ icon: Icon, label }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="text-gray-400 transition-colors hover:text-gray-600"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <Icon className="h-5 w-5" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -413,13 +415,13 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
     <div className="border-b border-[#E1F1F0] px-4 py-4">
       {/* Parent comment row */}
       <div className="flex gap-3">
-        <div className="flex w-10 flex-shrink-0 flex-col items-center">
+        <div className="flex w-10 shrink-0 flex-col items-center">
           <UserAvatarWithFollow
             user={mergedComment.user}
             size="md"
           />
           {showThreadLine && (
-            <div className="mt-1 mb-1 w-[1px] flex-1 rounded-full bg-[#D1E9E8]" />
+            <div className="mt-1 mb-1 w-px flex-1 rounded-full bg-[#D1E9E8]" />
           )}
         </div>
         <div
@@ -428,7 +430,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
             showThreadLine && "pb-3"
           )}
         >
-          <CommentHeader comment={mergedComment} onContentClick={isClickable ? () => router.push(`/comment/${mergedComment.id}`) : undefined} onDelete={handleDelete} />
+          <CommentHeader comment={mergedComment} onContentClick={isClickable ? () => router.push(`/post/${mergedComment.post_id}/comment/${mergedComment.id}`) : undefined} onDelete={handleDelete} />
           <CommentActions
             comment={mergedComment}
             liked={liked}
@@ -448,13 +450,13 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
         const isLastReply = i === replies.length - 1;
         return (
           <div className="flex gap-3" key={mergedReply.id}>
-            <div className="flex w-10 flex-shrink-0 flex-col items-center">
+            <div className="flex w-10 shrink-0 flex-col items-center">
               <UserAvatarWithFollow
                 user={mergedReply.user}
                 size="md"
               />
               {!isLastReply && (
-                <div className="mt-1 w-0.5 flex-1 rounded-full bg-[#D1E9E8]" />
+                <div className="mt-1 w-px flex-1 rounded-full bg-[#D1E9E8]" />
               )}
             </div>
             <div
@@ -465,7 +467,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
             >
               <InlineReplyContent
                 comment={mergedReply}
-                onContentClick={replyClickable ? () => router.push(`/comment/${mergedReply.id}`) : undefined}
+                onContentClick={replyClickable ? () => router.push(`/post/${mergedReply.post_id}/comment/${mergedReply.id}`) : undefined}
                 onReplyClick={() => setReplyTarget(reply)}
                 onDelete={async () => {
                   try {
@@ -485,7 +487,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
       {/* Loading state */}
       {isLoadingReplies && (
         <div className="flex gap-3">
-          <div className="flex w-10 flex-shrink-0 justify-center py-2">
+          <div className="flex w-10 shrink-0 justify-center py-2">
             <LoadingSpinner size="sm" />
           </div>
           <div />

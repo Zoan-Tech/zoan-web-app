@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { feedService } from "@/services/feed";
+import { Comment } from "@/types/feed";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { MentionDropdown } from "@/components/ui/mention-dropdown";
 import { MentionHighlight } from "@/components/ui/mention-highlight";
@@ -26,7 +27,7 @@ export function ReplyInput({
 }: {
   postId: string;
   parentId?: string;
-  onReplyCreated: () => void;
+  onReplyCreated: (comment: Comment) => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const { user } = useAuthStore();
@@ -79,14 +80,15 @@ export function ReplyInput({
 
     setIsSubmitting(true);
     try {
-      await feedService.createComment({
+      const newComment = await feedService.createComment({
         post_id: postId,
         parent_comment_id: parentId,
         content: trimmed,
       });
       setContent("");
       setIsFocused(false);
-      onReplyCreated();
+      toast.success("Comment posted!");
+      onReplyCreated(newComment);
     } catch {
       toast.error("Failed to post reply");
     } finally {
@@ -111,7 +113,7 @@ export function ReplyInput({
           <MentionHighlight
             content={content}
             placeholder="Reply or @"
-            className="min-h-[1.25rem] whitespace-nowrap text-sm leading-[1.5] text-gray-900"
+            className="min-h-5 whitespace-nowrap text-sm leading-normal text-gray-900"
           />
           <input
             ref={setRef}
@@ -126,7 +128,7 @@ export function ReplyInput({
                 handleSubmit();
               }
             }}
-            className="absolute inset-0 w-full bg-transparent p-0 text-sm leading-[1.5] text-transparent caret-gray-900 outline-none"
+            className="absolute inset-0 w-full bg-transparent p-0 text-sm leading-normal text-transparent caret-gray-900 outline-none"
           />
           <MentionDropdown
             results={mentionResults}
@@ -139,7 +141,7 @@ export function ReplyInput({
           <button
             onClick={handleSubmit}
             disabled={!content.trim() || isSubmitting}
-            className="flex-shrink-0 rounded-full bg-[#27CEC5] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:opacity-50"
+            className="shrink-0 rounded-full bg-[#27CEC5] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:opacity-50"
           >
             {isSubmitting ? (
               <SpinnerGapIcon className="h-4 w-4 animate-spin" />
@@ -152,7 +154,7 @@ export function ReplyInput({
 
       {/* Toolbar - shown when focused */}
       {isFocused && (
-        <div className="mt-3 flex items-center gap-4 pl-[52px]">
+        <div className="mt-3 flex items-center gap-4 pl-13">
           {toolbarItems.map(({ icon: Icon, label }) => (
             <button
               key={label}

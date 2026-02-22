@@ -20,7 +20,16 @@ export function Providers({ children }: Props) {
             <FcmProvider>
               {children}
             </FcmProvider>
-            <Toaster position="bottom-right" richColors />
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                style: {
+                  background: 'var(--primary)',
+                  color: '#ffffff',
+                  border: '1px solid var(--primary)',
+                },
+              }}
+            />
           </WalletProvider>
         </AuthProvider>
       </PrivyProvider>

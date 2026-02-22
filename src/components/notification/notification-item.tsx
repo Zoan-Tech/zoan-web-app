@@ -80,8 +80,8 @@ function getNotificationLink(notification: Notification): string {
             return metadata.post_id ? `/post/${metadata.post_id}` : "/";
         case "comment":
         case "reply":
-            return metadata.comment_id
-                ? `/comment/${metadata.comment_id}`
+            return metadata.comment_id && metadata.post_id
+                ? `/post/${metadata.post_id}/comment/${metadata.comment_id}`
                 : metadata.post_id
                     ? `/post/${metadata.post_id}`
                     : "/";
@@ -122,7 +122,7 @@ export function NotificationItem({
                 }`}
         >
             {/* Avatar with type icon overlay */}
-            <div className="relative flex-shrink-0">
+            <div className="relative shrink-0">
                 <UserAvatar user={notification.actor} size="sm" />
                 <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm">
                     {getNotificationIcon(notification.type)}
@@ -151,7 +151,7 @@ export function NotificationItem({
 
             {/* Unread dot */}
             {!notification.is_read && (
-                <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-[#27CEC5]" />
+                <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#27CEC5]" />
             )}
         </button>
     );

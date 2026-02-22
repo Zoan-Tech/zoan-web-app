@@ -40,7 +40,7 @@ export function PairedAgents() {
         {agents.slice(0, 6).map((agent, i) => (
           <button
             key={agent.id}
-            className="flex flex-col items-center gap-1.5"
+            className="flex flex-col items-center gap-1.5 hover:cursor-pointer"
             onClick={() => setInfoAgent(agent)}
           >
             <div
