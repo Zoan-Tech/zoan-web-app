@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getAccessToken } from '@/lib/api';
+import { getAccessToken, refreshAccessToken } from '@/lib/api';
 import { CommentEventData, SSEStatus } from '@/types/feed';
 
 interface UseCommentSSEOptions {
@@ -98,7 +98,7 @@ export function useCommentSSE(options: UseCommentSSEOptions): SSEStatus {
 
     const connectSSE = async () => {
       try {
-        const response = await fetch(url, {
+        let response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'text/event-stream',
@@ -107,7 +107,26 @@ export function useCommentSSE(options: UseCommentSSEOptions): SSEStatus {
         });
 
         if (!response.ok) {
-          throw new Error(`SSE connection failed: ${response.status}`);
+          // On 401, try to refresh the token before reconnecting
+          if (response.status === 401) {
+            const newToken = await refreshAccessToken();
+            if (!newToken || isClosed) {
+              throw new Error('Token refresh returned no token');
+            }
+            // Retry with the refreshed token
+            response = await fetch(url, {
+              headers: {
+                'Authorization': `Bearer ${newToken}`,
+                'Accept': 'text/event-stream',
+              },
+              signal: abortController.signal,
+            });
+            if (!response.ok) {
+              throw new Error(`SSE retry after refresh failed: ${response.status}`);
+            }
+          } else {
+            throw new Error(`SSE connection failed: ${response.status}`);
+          }
         }
 
         if (!response.body) {

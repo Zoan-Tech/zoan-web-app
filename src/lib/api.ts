@@ -73,10 +73,12 @@ let isLoggingOut = false;
 function handleUnauthorized(): void {
   if (isLoggingOut) return;
   isLoggingOut = true;
-  clearTokens();
+  // Don't clearTokens() here — let the onUnauthorized handler (logout)
+  // do it so authService.logout() can still send the auth header.
   if (onUnauthorized) {
     onUnauthorized();
   } else {
+    clearTokens();
     window.location.href = "/login";
   }
   // Keep the guard up briefly to prevent concurrent 401s from re-triggering
@@ -123,18 +125,42 @@ async function doRefresh(): Promise<string | null> {
     device_id: getDeviceId(),
   });
 
-  const token = response.data?.data?.token ?? response.data?.token;
-  if (token?.access_token) {
-    setAccessToken(token.access_token);
-    if (token.refresh_token) {
-      setRefreshToken(token.refresh_token);
+  // The backend may wrap the token in different shapes:
+  //   { data: { token: { access_token } } }   – nested
+  //   { data: { access_token } }               – flat inside data
+  //   { token: { access_token } }              – top-level token
+  const respData = response.data;
+  const tokenObj =
+    respData?.data?.token ??
+    respData?.token ??
+    (respData?.data?.access_token ? respData.data : null) ??
+    (respData?.access_token ? respData : null);
+
+  if (tokenObj?.access_token) {
+    setAccessToken(tokenObj.access_token);
+    if (tokenObj.refresh_token) {
+      setRefreshToken(tokenObj.refresh_token);
     }
     console.info("[Auth] Access token refreshed successfully.");
-    return token.access_token as string;
+    return tokenObj.access_token as string;
   }
 
-  console.warn("[Auth] Refresh response did not contain a valid access_token.", response.data);
+  console.warn("[Auth] Refresh response did not contain a valid access_token.", respData);
   return null;
+}
+
+/**
+ * Public helper so non-axios code (e.g. SSE, fetch) can trigger a token
+ * refresh and get the new access token back. Uses the same mutex as the
+ * interceptor so parallel callers coalesce into a single refresh request.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 // Response interceptor for token refresh
@@ -149,14 +175,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // If a refresh is already in-flight, wait for it instead of starting a new one
-        if (!refreshPromise) {
-          refreshPromise = doRefresh().finally(() => {
-            refreshPromise = null;
-          });
-        }
-
-        const newAccessToken = await refreshPromise;
+        const newAccessToken = await refreshAccessToken();
 
         if (newAccessToken) {
           if (originalRequest.headers) {

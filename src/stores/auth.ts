@@ -9,7 +9,7 @@ interface AuthState {
   status: AuthStatus;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setStatus: (status: AuthStatus) => void;
@@ -59,7 +59,10 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           console.error("Auth check failed:", error);
-          clearTokens();
+          // Don't clearTokens() here — the axios interceptor already calls
+          // handleUnauthorized() on final 401s, which triggers logout and
+          // clears tokens.  Clearing them here races with in-flight refreshes
+          // and can wipe freshly-refreshed tokens.
           set({ status: "unauthenticated", user: null, isLoading: false });
         }
       },
