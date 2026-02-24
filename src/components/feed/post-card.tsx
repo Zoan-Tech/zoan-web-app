@@ -120,7 +120,7 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
     >
       <div className="flex gap-3">
         {/* Avatar */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <UserAvatarWithFollow
             user={displayUser}
             size="md"

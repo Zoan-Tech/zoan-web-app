@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useRef, useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { feedService } from "@/services/feed";
@@ -20,7 +20,8 @@ import {
 } from "@/components/feed";
 import { formatRelativeTime } from "@/lib/utils";
 import { renderContentWithMentions } from "@/lib/render-mentions";
-import { Comment } from "@/types/feed";
+import { Comment, CommentEventData } from "@/types/feed";
+import { useSSE } from "@/providers/sse-provider";
 import {
   CaretLeftIcon,
   RobotIcon,
@@ -34,7 +35,7 @@ function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelet
   return (
     <article className="border-b border-[#E1F1F0] px-4 py-4">
       <div className="flex gap-3">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <UserAvatarWithFollow
             user={comment.user}
             size="md"
@@ -61,7 +62,7 @@ function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelet
               <MoreMenu
                 authorId={comment.user.id}
                 onDelete={onDelete}
-                copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/comment/${comment.id}`}
+                copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${comment.post_id}/comment/${comment.id}`}
               />
             </div>
           </div>
@@ -99,7 +100,8 @@ function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelet
 export default function CommentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const commentId = params.id as string;
+  const commentId = params.commentId as string;
+  const queryClient = useQueryClient();
   const replyInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -120,6 +122,35 @@ export default function CommentDetailPage() {
     queryFn: () => feedService.getCommentReplies(commentId),
     enabled: !!comment,
   });
+
+  // SSE for real-time reply updates
+  const handleCommentCreated = useCallback(async (data: CommentEventData) => {
+    try {
+      // Only process if this is a reply to the comment we're viewing
+      if (data.parent_comment_id !== commentId) {
+        return;
+      }
+
+      // Refetch replies to get the latest data
+      // This is more reliable than manual cache updates and handles all edge cases
+      await refetchReplies();
+
+      // Show notification for agent replies
+      if (data.user.is_agent) {
+        toast.info('Agent replied to your comment!');
+      }
+    } catch {
+      // Silently ignore refetch errors
+    }
+  }, [queryClient, commentId, refetchReplies]);
+
+  // Subscribe to SSE events (shared with PostDetail)
+  const { subscribe } = useSSE();
+
+  useEffect(() => {
+    const unsubscribe = subscribe('comment-detail', handleCommentCreated);
+    return unsubscribe;
+  }, [subscribe, handleCommentCreated]);
 
   if (isCommentLoading) {
     return (

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useSubmitStep } from "@/hooks/use-pairing";
 import { useWallets } from "@privy-io/react-auth";
-import { createWalletClient, custom, recoverTypedDataAddress } from "viem";
+import { createWalletClient, custom } from "viem";
 import { arbitrumSepolia } from "viem/chains";
 import type { PairingStep, EIP712Payload } from "@/lib/pairing";
 import { WarningIcon } from "@phosphor-icons/react";
@@ -53,15 +53,6 @@ export function SignatureStep({ agentId, step, stepNumber = 1, totalSteps = 4 }:
           types: types as Parameters<typeof walletClient.signTypedData>[0]["types"],
           primaryType: primaryType as string,
           message,
-        });
-
-        // Verify locally
-        const recoveredAddress = await recoverTypedDataAddress({
-          domain: domain as Parameters<typeof recoverTypedDataAddress>[0]["domain"],
-          types: types as Parameters<typeof recoverTypedDataAddress>[0]["types"],
-          primaryType: primaryType as string,
-          message,
-          signature: signature as `0x${string}`,
         });
         
       } else {
@@ -145,7 +136,7 @@ export function SignatureStep({ agentId, step, stepNumber = 1, totalSteps = 4 }:
           <WarningIcon
             size={18}
             weight="fill"
-            className="mt-0.5 flex-shrink-0 text-amber-500"
+            className="mt-0.5 shrink-0 text-amber-500"
           />
           <p className="text-xs text-amber-700">
             Only sign if you trust this agent. This signature grants permissions

@@ -38,3 +38,22 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
+
+/* Sonner toast customization */
+[data-sonner-toast] {
+  --normal-bg: var(--primary);
+  --normal-text: #ffffff;
+  --normal-border: var(--primary);
+}
+
+[data-sonner-toast][data-type="success"] {
+  --normal-bg: var(--primary);
+  --normal-text: #ffffff;
+  --normal-border: var(--primary);
+}
+
+[data-sonner-toast][data-type="info"] {
+  --normal-bg: var(--primary);
+  --normal-text: #ffffff;
+  --normal-border: var(--primary);
+}

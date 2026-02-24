@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -13,11 +13,12 @@ import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CommentCard, ReplyInput, PostActions, MoreMenu } from "@/components/feed";
 import { formatRelativeTime } from "@/lib/utils";
-import { Post } from "@/types/feed";
+import { Post, Comment, CommentEventData } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
 import { CaretLeftIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { useSSE } from "@/providers/sse-provider";
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -44,6 +45,30 @@ export default function PostDetailPage() {
     queryFn: () => feedService.getComments(postId),
     enabled: !!post,
   });
+
+  // SSE for real-time comment updates
+  const handleCommentCreated = useCallback(async (data: CommentEventData) => {
+    try {
+      // Refetch comments to get the latest data
+      // This is more reliable than manual cache updates and handles all edge cases
+      await refetchComments();
+
+      // Show notification for agent comments
+      if (data.user.is_agent) {
+        toast.info('Agent replied to your mention!');
+      }
+    } catch {
+      // Silently ignore refetch errors
+    }
+  }, [refetchComments]);
+
+  // Subscribe to SSE events
+  const { subscribe } = useSSE();
+
+  useEffect(() => {
+    const unsubscribe = subscribe('post-detail', handleCommentCreated);
+    return unsubscribe;
+  }, [subscribe, handleCommentCreated]);
 
   const handlePostUpdate = (updatedPost: Post) => {
     queryClient.setQueryData(queryKeys.post.byId(postId), updatedPost);
@@ -100,7 +125,7 @@ export default function PostDetailPage() {
         {/* Main Post */}
         <article className="border-b border-[#E1F1F0] px-4 py-4">
           <div className="flex gap-3">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <UserAvatarWithFollow
                 user={post.user}
                 size="md"
@@ -157,7 +182,21 @@ export default function PostDetailPage() {
         </article>
 
         {/* Reply Input */}
-        <ReplyInput postId={postId} onReplyCreated={() => refetchComments()} inputRef={replyInputRef} />
+        <ReplyInput
+          postId={postId}
+          onReplyCreated={(newComment) => {
+            // Optimistically update cache for own comments
+            queryClient.setQueryData(
+              queryKeys.comments.byPostId(postId),
+              (old: Comment[] | undefined) => {
+                if (!old) return [newComment];
+                if (old.some(c => c.id === newComment.id)) return old;
+                return [newComment, ...old];
+              }
+            );
+          }}
+          inputRef={replyInputRef}
+        />
 
         {/* Comments */}
         {isCommentsLoading ? (

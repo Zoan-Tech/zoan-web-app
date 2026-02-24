@@ -65,7 +65,7 @@ export function LiveFeed() {
         {MOCK_FEED.map((item) => (
           <div key={item.id} className="flex items-center">
             {/* User avatar */}
-            <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-gray-100">
               <Image
                 src={item.userAvatar}
                 alt={item.user}
@@ -75,7 +75,7 @@ export function LiveFeed() {
             </div>
 
             {/* Username */}
-            <span className="ml-3 min-w-0 flex-shrink-0 text-sm font-medium text-gray-900">
+            <span className="ml-3 min-w-0 shrink-0 text-sm font-medium text-gray-900">
               {item.user}
             </span>
 
@@ -90,7 +90,7 @@ export function LiveFeed() {
             </span>
 
             {/* Token icon */}
-            <div className="relative ml-2 h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
+            <div className="relative ml-2 h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-100">
               <Image
                 src={item.tokenIcon}
                 alt={item.token}

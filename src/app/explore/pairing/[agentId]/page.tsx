@@ -21,6 +21,7 @@ export default function PairingPage({
 
   const handleComplete = () => {
     queryClient.invalidateQueries({ queryKey: ["agents", "installed"] });
+    queryClient.invalidateQueries({ queryKey: ["agents", "trending"] });
     router.push("/explore");
   };
 

@@ -201,7 +201,7 @@ export function MoreMenu({
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-50 min-w-[200px] overflow-hidden rounded bg-[#F7F9F9] shadow-xl"
+            className="fixed z-50 min-w-50 overflow-hidden rounded bg-[#F7F9F9] shadow-xl"
             style={{ top: position.top, bottom: position.bottom, right: position.right }}
             onClick={(e) => e.stopPropagation()}
           >

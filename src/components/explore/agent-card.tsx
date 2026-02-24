@@ -24,7 +24,7 @@ export function AgentCard({ agent, index }: Props) {
       {/* Avatar */}
       <div
         className={cn(
-          "flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded"
+          "flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded"
         )}
         style={{
           backgroundColor: !agent.avatar_url
@@ -61,7 +61,7 @@ export function AgentCard({ agent, index }: Props) {
       {needsPairing(agent) && (
         <button
           onClick={handlePair}
-          className="flex-shrink-0 rounded-full bg-[#27CEC5] px-5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#20b5ad]"
+          className="shrink-0 rounded-full bg-[#27CEC5] px-5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#20b5ad]"
         >
           Pair
         </button>
