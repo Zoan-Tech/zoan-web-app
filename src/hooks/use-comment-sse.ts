@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getAccessToken } from '@/lib/api/token';
+import { getAccessToken } from '@/lib/api';
 import { CommentEventData, SSEStatus } from '@/types/feed';
 
 interface UseCommentSSEOptions {
