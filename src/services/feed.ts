@@ -28,6 +28,18 @@ export const feedService = {
   },
 
   async createPost(data: CreatePostRequest): Promise<Post> {
+    if (data.medias && data.medias.length > 0) {
+      const form = new FormData();
+      form.append("content", data.content);
+      if (data.visibility) form.append("visibility", data.visibility);
+      if (data.poll) form.append("poll", JSON.stringify(data.poll));
+      data.medias.forEach((file) => form.append("medias", file));
+
+      const response = await api.post("/posts", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
+    }
     const response = await api.post("/posts", data);
     return response.data.data;
   },
@@ -68,9 +80,21 @@ export const feedService = {
   },
 
   async createComment(data: CreateCommentRequest): Promise<Comment> {
+    if (data.medias && data.medias.length > 0) {
+      const form = new FormData();
+      form.append("content", data.content);
+      if (data.parent_comment_id) form.append("parent_comment_id", data.parent_comment_id);
+      if (data.poll) form.append("poll", JSON.stringify(data.poll));
+      data.medias.forEach((file) => form.append("medias", file));
+      const response = await api.post(`/posts/${data.post_id}/comments`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
+    }
     const response = await api.post(`/posts/${data.post_id}/comments`, {
       content: data.content,
       parent_comment_id: data.parent_comment_id,
+      poll: data.poll,
     });
     return response.data.data;
   },

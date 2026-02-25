@@ -12,11 +12,16 @@ export interface Meta {
   total: number;
 }
 
+export interface Media {
+  url: string;
+  type: string; // mimetype, e.g. "image/png"
+} 
+
 export interface Post {
   id: string;
   content: string;
   user: User;
-  media_urls: string[];
+  medias: Media[];
   like_count: number;
   repost_count: number;
   reply_count: number;
@@ -45,19 +50,20 @@ export interface Mention {
 
 export interface Poll {
   id: string;
-  question: string;
   options: PollOption[];
   total_votes: number;
   ends_at: string;
-  has_voted: boolean;
-  selected_option_id?: string;
+  is_ended: boolean;
+  // User-specific fields
+  voted_option_id?: string;
 }
 
 export interface PollOption {
   id: string;
   text: string;
   vote_count: number;
-  percentage: number;
+  vote_percentage: number;
+  position: number;
 }
 
 export interface Comment {
@@ -65,6 +71,7 @@ export interface Comment {
   post_id: string;
   parent_comment_id?: string;
   content: string;
+  medias: Media[];
   user: User;
   like_count: number;
   reply_count: number;
@@ -72,18 +79,18 @@ export interface Comment {
   created_at: string;
   replies?: Comment[];
   mentions?: Mention[];
+  poll?: Poll;
 }
 
 export interface CreatePostRequest {
   content: string;
-  media_urls?: string[];
+  medias?: File[];
   visibility?: "public" | "followers" | "mentioned";
   reply_settings?: "everyone" | "followers" | "mentioned";
   poll?: CreatePollRequest;
 }
 
 export interface CreatePollRequest {
-  question: string;
   options: string[];
   duration_hours: number;
 }
@@ -92,6 +99,8 @@ export interface CreateCommentRequest {
   post_id: string;
   parent_comment_id?: string;
   content: string;
+  medias?: File[];
+  poll?: CreatePollRequest;
 }
 
 // SSE Event Types

@@ -29,7 +29,6 @@ export function useFcm() {
                     return;
                 }
 
-                console.log("[FCM] Token:", token);
                 initialized.current = true;
 
                 // Register token with backend
@@ -39,7 +38,6 @@ export function useFcm() {
                         device_type: "web",
                         device_id: getDeviceId(),
                     });
-                    console.log("[FCM] Token registered with backend");
                 } catch (err) {
                     console.error("[FCM] Failed to register token:", err);
                 }
@@ -48,7 +46,6 @@ export function useFcm() {
                 const messaging = getMessagingInstance();
                 if (messaging) {
                     onMessage(messaging, (payload) => {
-                        console.log("[FCM] Foreground message:", payload);
 
                         const title =
                             payload.notification?.title ||

@@ -15,6 +15,8 @@ import { CommentCard, ReplyInput, PostActions, MoreMenu } from "@/components/fee
 import { formatRelativeTime } from "@/lib/utils";
 import { Post, Comment, CommentEventData } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
+import { MediaGrid } from "@/components/ui/media-grid";
+import { PollDisplay } from "@/components/ui/poll-display";
 import { CaretLeftIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
@@ -169,6 +171,17 @@ export default function PostDetailPage() {
               <div className="text-gray-900 text-[12px]">
                 {renderContentWithMentions(post.content, post.entities?.mentions)}
               </div>
+
+              {/* Media */}
+              <MediaGrid medias={post.medias} />
+
+              {/* Poll */}
+              {post.poll && (
+                <PollDisplay
+                  poll={post.poll}
+                  onVote={(updatedPoll) => handlePostUpdate({ ...post, poll: updatedPoll })}
+                />
+              )}
 
               {/* Actions */}
               <div className="mt-3">
