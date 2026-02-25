@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import {
@@ -19,6 +18,8 @@ import { useRouter } from "next/navigation";
 import { feedService } from "@/services/feed";
 import { useAuthStore } from "@/stores/auth";
 import { toast } from "sonner";
+import { MediaGrid } from "@/components/ui/media-grid";
+import { PollDisplay } from "@/components/ui/poll-display";
 
 interface Props {
   post: Post;
@@ -160,51 +161,14 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
           </div>
 
           {/* Media */}
-          {post.media_urls && post.media_urls.length > 0 && (
-            <div className="mt-3 grid gap-2 overflow-hidden rounded-xl">
-              {post.media_urls.slice(0, 4).map((url, index) => (
-                <div
-                  key={index}
-                  className="relative aspect-video overflow-hidden rounded-xl bg-gray-100"
-                >
-                  <Image
-                    src={url}
-                    alt="Post media"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <MediaGrid medias={post.medias} />
 
           {/* Poll */}
           {post.poll && (
-            <div className="mt-3 rounded-xl border border-gray-200 p-3">
-              <p className="font-medium text-gray-900">{post.poll.question}</p>
-              <div className="mt-2 space-y-2">
-                {post.poll.options.map((option) => (
-                  <div
-                    key={option.id}
-                    className="relative overflow-hidden rounded-lg border border-gray-200 p-2"
-                  >
-                    <div
-                      className="absolute inset-0 bg-[#E0FAF8]"
-                      style={{ width: `${option.percentage}%` }}
-                    />
-                    <div className="relative flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{option.text}</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {option.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                {formatNumber(post.poll.total_votes)} votes
-              </p>
-            </div>
+            <PollDisplay
+              poll={post.poll}
+              onVote={(updatedPoll) => onUpdate?.({ ...post, poll: updatedPoll })}
+            />
           )}
 
           {/* Actions */}

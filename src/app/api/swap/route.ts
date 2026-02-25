@@ -66,12 +66,6 @@ export async function GET(request: NextRequest) {
       "Content-Type": "application/json",
     };
 
-    console.log("[Swap Proxy] →", url.toString());
-    console.log("[Swap Proxy] headers:", {
-      ...requestHeaders,
-      "0x-api-key": requestHeaders["0x-api-key"] ? `${requestHeaders["0x-api-key"].slice(0, 6)}…` : "(empty)",
-    });
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -86,7 +80,6 @@ export async function GET(request: NextRequest) {
     }
 
     const text = await response.text();
-    console.log("[Swap Proxy] ← status:", response.status, "body:", text.slice(0, 500));
 
     let data: unknown;
     try {

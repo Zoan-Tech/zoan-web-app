@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useTrendingAgents } from "@/hooks/use-agents";
+import { Agent, getAgentName } from "@/lib/agents";
+
+const AGENT_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -16,8 +20,11 @@ import { Modal } from "@/components/ui/modal";
 import { useAuthStore } from "@/stores/auth";
 import { useMentionInput } from "@/hooks/use-mention-input";
 import { formatRelativeTime, formatNumber, cn } from "@/lib/utils";
-import { Comment } from "@/types/feed";
+import { Comment, CreatePollRequest } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
+import { MediaGrid } from "@/components/ui/media-grid";
+import { PollDisplay } from "@/components/ui/poll-display";
+import { PollCreator } from "@/components/ui/poll-creator";
 import { toast } from "sonner";
 import {
   HeartIcon,
@@ -25,15 +32,15 @@ import {
   RepeatIcon,
   RobotIcon,
   ArrowSquareOutIcon,
-  ChatsIcon,
   ImageSquareIcon,
-  SmileyIcon,
-  ListIcon,
-  NotepadIcon,
-  MapPinIcon,
   SpinnerGapIcon,
   DotsThreeIcon,
+  XIcon,
+  ChartBarIcon,
 } from "@phosphor-icons/react";
+import Image from "next/image";
+import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
+import { EmojiPickerButton } from "@/components/ui/emoji-picker-button";
 import { MoreMenu } from "./more-menu";
 
 function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment; onContentClick?: () => void; onDelete?: () => void }) {
@@ -82,6 +89,8 @@ function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment
       >
         {renderContentWithMentions(comment.content, comment.mentions)}
       </div>
+      <MediaGrid medias={comment.medias} />
+      {comment.poll && <PollDisplay poll={comment.poll} />}
     </>
   );
 }
@@ -169,14 +178,8 @@ export function CommentActions({
 
 // --- Reply Modal ---
 
-const replyToolbarItems = [
-  { icon: ChatsIcon, label: "Quote" },
-  { icon: ImageSquareIcon, label: "Image" },
-  { icon: SmileyIcon, label: "Emoji" },
-  { icon: ListIcon, label: "List" },
-  { icon: NotepadIcon, label: "Note" },
-  { icon: MapPinIcon, label: "Location" },
-];
+const MAX_FILES = 4;
+
 
 function ReplyModal({
   open,
@@ -191,6 +194,16 @@ function ReplyModal({
 }) {
   const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [showPoll, setShowPoll] = useState(false);
+  const [poll, setPoll] = useState<CreatePollRequest | null>(null);
+  const [showAgents, setShowAgents] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const agentsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: trendingAgents, isLoading: agentsLoading } = useTrendingAgents();
 
   const {
     content,
@@ -210,14 +223,79 @@ function ReplyModal({
     [inputRef]
   );
 
+  useEffect(() => {
+    const urls = mediaFiles.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [mediaFiles]);
+
   // Auto-focus when modal opens
   useEffect(() => {
     if (open) {
-      // Small delay to allow modal transition
       const timer = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(timer);
     }
   }, [open, inputRef]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    if (!selected.length) return;
+    setMediaFiles((prev) => [...prev, ...selected].slice(0, MAX_FILES));
+    e.target.value = "";
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const images = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (!images.length) return;
+    e.preventDefault();
+    setMediaFiles((prev) => [...prev, ...images].slice(0, MAX_FILES));
+  };
+
+  useEffect(() => {
+    if (!showAgents) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (agentsDropdownRef.current && !agentsDropdownRef.current.contains(e.target as Node)) {
+        setShowAgents(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAgents]);
+
+  const mentionAgent = (agent: Agent) => {
+    const handle = agent.username || agent.name || agent.display_name || agent.id;
+    const el = inputRef.current;
+    const pos = el?.selectionStart ?? content.length;
+    const mention = `@${handle} `;
+    setContent(content.slice(0, pos) + mention + content.slice(pos));
+    setShowAgents(false);
+    requestAnimationFrame(() => {
+      if (el) {
+        const newPos = pos + mention.length;
+        el.focus();
+        el.setSelectionRange(newPos, newPos);
+      }
+    });
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current;
+    const pos = el?.selectionStart ?? content.length;
+    const newContent = content.slice(0, pos) + emoji + content.slice(pos);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.setSelectionRange(pos + emoji.length, pos + emoji.length);
+      }
+    });
+  };
 
   if (!user) return null;
 
@@ -231,8 +309,13 @@ function ReplyModal({
         post_id: comment.post_id,
         parent_comment_id: comment.id,
         content: trimmed,
+        medias: mediaFiles.length > 0 ? mediaFiles : undefined,
+        poll: poll ?? undefined,
       });
       setContent("");
+      setMediaFiles([]);
+      setShowPoll(false);
+      setPoll(null);
       onReplyCreated();
       onClose();
     } catch {
@@ -262,7 +345,8 @@ function ReplyModal({
         </div>
       }
     >
-      <div className="max-h-[70vh] overflow-y-auto">
+      {/* Scrollable area: parent comment preview + reply text input only */}
+      <div className="max-h-[50vh] overflow-y-auto">
         {/* Parent comment preview */}
         <div className="flex gap-3">
           <div className="flex w-10 shrink-0 flex-col items-center">
@@ -288,7 +372,7 @@ function ReplyModal({
           </div>
         </div>
 
-        {/* Reply input row */}
+        {/* Reply text input + submit button */}
         <div className="flex gap-3">
           <div className="flex w-10 shrink-0 flex-col items-center">
             <UserAvatar user={user} size="md" />
@@ -306,6 +390,7 @@ function ReplyModal({
                   type="text"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
+                  onPaste={handlePaste}
                   onKeyDown={(e) => {
                     if (handleKeyDown(e)) return;
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -334,20 +419,130 @@ function ReplyModal({
                 )}
               </button>
             </div>
-            <div className="mt-2 flex items-center gap-4">
-              {replyToolbarItems.map(({ icon: Icon, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="text-gray-400 transition-colors hover:text-gray-600"
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <Icon className="h-5 w-5" />
-                </button>
-              ))}
-            </div>
           </div>
         </div>
+      </div>
+
+      {/* Toolbar — outside overflow so the agents dropdown is never clipped */}
+      <div className="mt-2 pl-13">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            className="text-gray-400 transition-colors hover:text-gray-600 disabled:opacity-40"
+            disabled={mediaFiles.length >= MAX_FILES}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImageSquareIcon className="h-5 w-5" />
+          </button>
+
+          {/* Agents dropdown */}
+          <div className="relative flex items-center" ref={agentsDropdownRef}>
+            <button
+              type="button"
+              className={showAgents ? "text-[#27CEC5]" : "text-gray-400 transition-colors hover:text-gray-600"}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setShowAgents((v) => !v)}
+            >
+              <Image src="/logo-draw.svg" alt="Agents" width={20} height={20} />
+            </button>
+            {showAgents && (
+              <div className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-xl border border-gray-100 bg-white shadow-lg">
+                <p className="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-500">
+                  Trending Agents
+                </p>
+                <div className="max-h-72 overflow-y-auto">
+                  {agentsLoading && (
+                    <p className="px-3 py-3 text-sm text-gray-400">Loading…</p>
+                  )}
+                  {!agentsLoading && !trendingAgents?.length && (
+                    <p className="px-3 py-3 text-sm text-gray-400">No agents found</p>
+                  )}
+                  {trendingAgents?.map((agent, index) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => mentionAgent(agent)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50"
+                    >
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded"
+                        style={{ backgroundColor: !agent.avatar_url ? AGENT_COLORS[index % AGENT_COLORS.length] : undefined }}
+                      >
+                        {agent.avatar_url ? (
+                          <Image src={agent.avatar_url} alt={getAgentName(agent)} width={32} height={32} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-bold text-white">{getAgentName(agent)[0].toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-900">{getAgentName(agent)}</p>
+                        {(agent.description || agent.username) && (
+                          <p className="truncate text-xs text-gray-400">{agent.description || `@${agent.username}`}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setShowPoll((v) => !v); if (showPoll) setPoll(null); }}
+            className={showPoll ? "text-[#27CEC5]" : "text-gray-400 transition-colors hover:text-gray-600"}
+          >
+            <ChartBarIcon className="h-5 w-5" />
+          </button>
+          <EmojiPickerButton onEmojiSelect={insertEmoji} />
+        </div>
+        {showPoll && (
+          <div className="mt-2">
+            <PollCreator
+              onChange={setPoll}
+              onRemove={() => { setShowPoll(false); setPoll(null); }}
+            />
+          </div>
+        )}
+
+        {/* Previews */}
+        {previews.length > 0 && (
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            {previews.map((src, i) => (
+              <div key={i} className="relative shrink-0">
+                <Image
+                  src={src}
+                  alt={`preview-${i}`}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 cursor-pointer rounded-lg object-cover"
+                  unoptimized
+                  onClick={() => setPreviewSrc(src)}
+                />
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleRemoveFile(i)}
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-white"
+                >
+                  <XIcon className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <ImagePreviewModal src={previewSrc} onClose={() => setPreviewSrc(null)} />
       </div>
     </Modal>
   );

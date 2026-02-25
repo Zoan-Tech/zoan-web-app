@@ -20,6 +20,8 @@ import {
 } from "@/components/feed";
 import { formatRelativeTime } from "@/lib/utils";
 import { renderContentWithMentions } from "@/lib/render-mentions";
+import { MediaGrid } from "@/components/ui/media-grid";
+import { PollDisplay } from "@/components/ui/poll-display";
 import { Comment, CommentEventData } from "@/types/feed";
 import { useSSE } from "@/providers/sse-provider";
 import {
@@ -81,6 +83,12 @@ function ParentCommentArticle({ comment, onDelete }: { comment: Comment; onDelet
           <div className="text-gray-900 text-[12px]">
             {renderContentWithMentions(comment.content, comment.mentions)}
           </div>
+
+          {/* Media */}
+          <MediaGrid medias={comment.medias} />
+
+          {/* Poll */}
+          {comment.poll && <PollDisplay poll={comment.poll} />}
 
           {/* Actions */}
           <div className="mt-3">

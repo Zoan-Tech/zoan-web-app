@@ -13,7 +13,7 @@ export function CreatePost() {
   return (
     <div
       className="cursor-pointer px-4 py-4 border-b border-[#E1F1F0]"
-      onClick={() => router.push("/create")}
+      onClick={() => router.push("/post/create")}
     >
       <div className="flex items-center gap-3">
         <UserAvatar user={user} size="md" />
