@@ -1,11 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { alchemyRpcUrls } from "@/lib/config";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
+import type { Chain } from "@/types/wallet";
 
 const RPC_TIMEOUT_MS = 10_000;
+const CHAIN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Simple in-memory cache for chains fetched from the backend
+let cachedChains: Chain[] | null = null;
+let cacheTimestamp = 0;
+
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8091/api/v1";
+
+async function getChains(): Promise<Chain[]> {
+  const now = Date.now();
+  if (cachedChains && now - cacheTimestamp < CHAIN_CACHE_TTL_MS) {
+    return cachedChains;
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/chains`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.chains) {
+        cachedChains = json.data.chains.map((bc: Record<string, unknown>) => {
+          const providers = (bc.rpc_providers as Array<Record<string, unknown>>) ?? [];
+          const activeProviders = providers
+            .filter((p) => p.is_active)
+            .sort((a, b) => (a.priority as number) - (b.priority as number));
+          return {
+            id: bc.chain_id as number,
+            name: bc.name as string,
+            symbol: bc.native_currency_symbol as string,
+            rpc_url: (activeProviders[0]?.rpc_url as string) ?? "",
+            explorer_url: bc.explorer_url as string,
+            logo_url: (bc.logo_url as string) || undefined,
+            is_testnet: bc.is_testnet as boolean,
+          } satisfies Chain;
+        });
+        cacheTimestamp = now;
+        return cachedChains!;
+      }
+    }
+  } catch (err) {
+    console.warn("[RPC Proxy] Failed to fetch chains from backend, cache empty:", err);
+  }
+
+  // Return cached (even if stale) or empty
+  return cachedChains ?? [];
+}
 
 // Only allow RPC methods the app actually uses.
-// This prevents abuse of the proxy for arbitrary blockchain queries.
 const ALLOWED_METHODS = new Set([
   "eth_getBalance",
   "eth_estimateGas",
@@ -13,9 +58,6 @@ const ALLOWED_METHODS = new Set([
   "eth_call",
   "eth_sendTransaction",
   "eth_getTransactionReceipt",
-  "alchemy_getTokenBalances",
-  "alchemy_getTokenMetadata",
-  "alchemy_getAssetTransfers",
 ]);
 
 function fetchWithTimeout(url: string, body: string): Promise<Response> {
@@ -31,9 +73,8 @@ function fetchWithTimeout(url: string, body: string): Promise<Response> {
 }
 
 /**
- * Server-side RPC proxy to avoid CORS issues with public RPC endpoints.
- * The client POSTs { chainId, method, params } and this route forwards the
- * JSON-RPC call to the appropriate RPC URL.
+ * Server-side RPC proxy.
+ * Uses only the backend Chain API for RPC URLs — no hardcoded Alchemy URLs.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -53,10 +94,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine RPC URL: try Alchemy first, then public RPC
-    const alchemyUrl = alchemyRpcUrls[chainId];
-    const publicUrl = SUPPORTED_CHAINS.find((c) => c.id === chainId)?.rpc_url;
-    const rpcUrl = alchemyUrl || publicUrl;
+    // RPC URL comes entirely from the backend chain data
+    const chains = await getChains();
+    const rpcUrl = chains.find((c) => c.id === chainId)?.rpc_url;
 
     if (!rpcUrl) {
       return NextResponse.json(
@@ -72,26 +112,9 @@ export async function POST(request: NextRequest) {
       params: params ?? [],
     });
 
-    const isAlchemyMethod = method.startsWith("alchemy_");
-
-    // Try primary URL
-    let response = await fetchWithTimeout(rpcUrl, body);
-
-    // If Alchemy fails, fall back to public RPC (only for standard methods)
-    if (!response.ok && alchemyUrl && publicUrl && !isAlchemyMethod) {
-      response = await fetchWithTimeout(publicUrl, body);
-    }
+    const response = await fetchWithTimeout(rpcUrl, body);
 
     if (!response.ok) {
-      // Return empty JSON-RPC result for Alchemy-specific methods so the
-      // client gets a graceful empty response instead of a 502
-      if (isAlchemyMethod) {
-        return NextResponse.json({
-          jsonrpc: "2.0",
-          id: 1,
-          result: { address: "", tokenBalances: [] },
-        });
-      }
       return NextResponse.json(
         { error: `RPC error: ${response.status}` },
         { status: 502 }

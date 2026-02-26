@@ -10,7 +10,7 @@ import { PageContent } from "@/components/ui/page-content";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SwapForm } from "@/components/wallet/swap-form";
 import { useWalletStore } from "@/stores/wallet";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
+import { useChains } from "@/hooks/use-chains";
 import {
   CaretLeftIcon,
   CaretDownIcon,
@@ -27,9 +27,8 @@ function SwapPageContent() {
   const [selectedChainId, setSelectedChainId] = useState(initialChainId);
   const [showChainSelector, setShowChainSelector] = useState(false);
 
-  const chain = SUPPORTED_CHAINS.find((c) => c.id === selectedChainId);
-  const mainnets = SUPPORTED_CHAINS.filter((c) => !c.is_testnet);
-  const testnets = SUPPORTED_CHAINS.filter((c) => c.is_testnet);
+  const { mainnets, testnets, getChainById } = useChains();
+  const chain = getChainById(selectedChainId);
 
   const embeddedWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"

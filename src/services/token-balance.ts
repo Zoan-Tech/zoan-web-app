@@ -127,117 +127,31 @@ export async function getNativeBalance(
 }
 
 /**
- * Fetch ERC20 token balances using Alchemy's enhanced API (proxied).
- * Returns only tokens with non-zero balances, enriched with metadata.
+ * Fetch ERC20 token balances.
+ * NOTE: Without Alchemy's enhanced API, ERC20 token discovery requires a
+ * known token list (e.g. from the backend). For now, returns empty.
+ * Standard RPC nodes don't support enumerating all ERC20 tokens for an address.
  */
 export async function getTokenBalances(
-  chainId: number,
-  address: string
+  _chainId: number,
+  _address: string
 ): Promise<TokenBalance[]> {
-  let result: AlchemyTokenBalanceResult;
-  try {
-    result = await rpcProxy<AlchemyTokenBalanceResult>(
-      chainId,
-      "alchemy_getTokenBalances",
-      [address, "erc20"]
-    );
-  } catch {
-    console.warn(`[TokenBalance] alchemy_getTokenBalances failed for chain ${chainId}, skipping ERC20s`);
-    return [];
-  }
-
-  // Filter non-zero balances
-  const nonZero = result.tokenBalances.filter(
-    (t) => t.tokenBalance && t.tokenBalance !== "0x0" && t.tokenBalance !== "0x"
-  );
-
-  if (nonZero.length === 0) return [];
-
-  // Fetch metadata for each token in parallel
-  const tokens = await Promise.all(
-    nonZero.map(async (t) => {
-      try {
-        const metadata = await rpcProxy<AlchemyTokenMetadata>(
-          chainId,
-          "alchemy_getTokenMetadata",
-          [t.contractAddress]
-        );
-
-        return {
-          address: t.contractAddress,
-          symbol: metadata.symbol || "???",
-          name: metadata.name || "Unknown Token",
-          decimals: metadata.decimals || 18,
-          balance: formatBalance(t.tokenBalance, metadata.decimals || 18),
-          logo_url: metadata.logo || undefined,
-        };
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return tokens.filter(
-    (t): t is NonNullable<typeof t> => t !== null && t.balance !== "0"
-  ) as TokenBalance[];
+  // TODO: Implement ERC20 token discovery using a backend token list
+  // instead of Alchemy's alchemy_getTokenBalances method.
+  return [];
 }
 
+/**
+ * Fetch transaction history.
+ * NOTE: Without Alchemy's alchemy_getAssetTransfers, transaction history
+ * should be fetched from the backend or block explorer API.
+ */
 export async function getTransactionHistory(
-  chainId: number,
-  address: string
+  _chainId: number,
+  _address: string
 ): Promise<Transfer[]> {
-  const makeParams = (key: "fromAddress" | "toAddress") => [
-    {
-      [key]: address,
-      category: ["external", "internal", "erc20"],
-      withMetadata: true,
-      maxCount: "0x14",
-      order: "desc",
-    },
-  ];
-
-  const [sentResult, receivedResult] = await Promise.allSettled([
-    rpcProxy<{ transfers: AlchemyTransfer[] }>(
-      chainId,
-      "alchemy_getAssetTransfers",
-      makeParams("fromAddress")
-    ),
-    rpcProxy<{ transfers: AlchemyTransfer[] }>(
-      chainId,
-      "alchemy_getAssetTransfers",
-      makeParams("toAddress")
-    ),
-  ]);
-
-  const toTransfer = (t: AlchemyTransfer, direction: "sent" | "received"): Transfer => ({
-    hash: t.hash,
-    from: t.from,
-    to: t.to,
-    value: t.value,
-    asset: t.asset,
-    category: t.category,
-    blockNum: t.blockNum,
-    timestamp: t.metadata?.blockTimestamp ?? null,
-    direction,
-  });
-
-  const sent =
-    sentResult.status === "fulfilled"
-      ? (sentResult.value.transfers ?? []).map((t) => toTransfer(t, "sent"))
-      : [];
-  const received =
-    receivedResult.status === "fulfilled"
-      ? (receivedResult.value.transfers ?? []).map((t) => toTransfer(t, "received"))
-      : [];
-
-  const seen = new Set<string>();
-  const merged = [...sent, ...received].filter((t) => {
-    const key = `${t.hash}-${t.direction}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  merged.sort((a, b) => parseInt(b.blockNum, 16) - parseInt(a.blockNum, 16));
-  return merged.slice(0, 30);
+  // TODO: Implement transaction history using the backend or explorer API
+  // instead of Alchemy's alchemy_getAssetTransfers method.
+  return [];
 }
+
