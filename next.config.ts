@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         hostname: "s2.coinmarketcap.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "i.pinimg.com",
+        pathname: "/**",
+      },
     ],
   },
   // Suppress hydration warnings in dev (for Privy)

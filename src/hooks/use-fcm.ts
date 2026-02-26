@@ -29,7 +29,6 @@ export function useFcm() {
                     return;
                 }
 
-                console.log("[FCM] Token:", token);
                 initialized.current = true;
 
                 // Register token with backend

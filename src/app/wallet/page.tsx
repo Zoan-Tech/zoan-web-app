@@ -9,7 +9,7 @@ import { AppShell } from "@/components/layout";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
-import { SUPPORTED_CHAINS } from "@/types/wallet";
+import { useChains } from "@/hooks/use-chains";
 import { useWalletStore } from "@/stores/wallet";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import {
@@ -77,16 +77,13 @@ export default function WalletPage() {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  const mainnets = SUPPORTED_CHAINS.filter((c) => !c.is_testnet);
-  const testnets = SUPPORTED_CHAINS.filter((c) => c.is_testnet);
+  const { mainnets, testnets, getChainById, isLoading: isChainsLoading } = useChains();
 
   const embeddedWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"
   );
 
-  const selectedChain = SUPPORTED_CHAINS.find(
-    (chain) => chain.id === selectedChainId
-  );
+  const selectedChain = getChainById(selectedChainId);
 
   const { nativeBalance, nativeUsdValue, tokens, isLoading: isBalanceLoading } =
     useTokenBalances(embeddedWallet?.address, selectedChainId);
