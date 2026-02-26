@@ -11,7 +11,7 @@ import { PageContent } from "@/components/ui/page-content";
 import { UserAvatarWithFollow } from "@/components/ui/user-avatar-with-follow";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CommentCard, ReplyInput, PostActions, MoreMenu } from "@/components/feed";
+import { CommentCard, ReplyInput, PostActions, MoreMenu, RepostedFromCard } from "@/components/feed";
 import { formatRelativeTime } from "@/lib/utils";
 import { Post, Comment, CommentEventData } from "@/types/feed";
 import { renderContentWithMentions } from "@/lib/render-mentions";
@@ -181,6 +181,14 @@ export default function PostDetailPage() {
                   poll={post.poll}
                   onVote={(updatedPoll) => handlePostUpdate({ ...post, poll: updatedPoll })}
                 />
+              )}
+
+              {/* Reposted from */}
+              {post.reposted_from_post && (
+                <RepostedFromCard source={post.reposted_from_post} type="post" />
+              )}
+              {post.reposted_from_comment && (
+                <RepostedFromCard source={post.reposted_from_comment} type="comment" />
               )}
 
               {/* Actions */}

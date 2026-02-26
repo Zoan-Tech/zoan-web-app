@@ -66,7 +66,7 @@ export function UserAvatarWithFollow({
         onMouseLeave={() => setIsHovering(false)}
         disabled={isLoading}
         className={cn(
-          "absolute bottom-[-8px] right-[-8px] flex h-5 w-5 items-center justify-center rounded-full border-2 border-white transition-all z-10",
+          "absolute -bottom-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white transition-all z-10",
           "bg-gray-900 hover:bg-gray-800",
           isLoading && "opacity-50 cursor-wait"
         )}
@@ -84,7 +84,7 @@ export function UserAvatarWithFollow({
         >
           <div className="relative">
             <div
-              className="rounded-lg bg-white border border-[#B0F1ED] px-3 py-2 whitespace-nowrap backdrop-blur-[12px]"
+              className="rounded-lg bg-white border border-[#B0F1ED] px-3 py-2 whitespace-nowrap backdrop-blur-md"
               style={{
                 boxShadow: '0px 4px 10px 0px #E9FBFA'
               }}

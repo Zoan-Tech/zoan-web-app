@@ -33,6 +33,8 @@ export const feedService = {
       form.append("content", data.content);
       if (data.visibility) form.append("visibility", data.visibility);
       if (data.poll) form.append("poll", JSON.stringify(data.poll));
+      if (data.repost_post_id) form.append("repost_post_id", data.repost_post_id);
+      if (data.repost_comment_id) form.append("repost_comment_id", data.repost_comment_id);
       data.medias.forEach((file) => form.append("medias", file));
 
       const response = await api.post("/posts", form, {
@@ -57,7 +59,7 @@ export const feedService = {
   },
 
   async repost(postId: string): Promise<void> {
-    await api.post(`/posts/${postId}/repost`, { post_id: postId });
+    await api.post("/posts", { repost_post_id: postId });
   },
 
   async unrepost(postId: string): Promise<void> {

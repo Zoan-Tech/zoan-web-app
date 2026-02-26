@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useTrendingAgents } from "@/hooks/use-agents";
-import { Agent, getAgentName } from "@/lib/agents";
-
-const AGENT_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];
+import { Agent } from "@/lib/agents";
+import { PostToolbar } from "@/components/ui/post-toolbar";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { feedService } from "@/services/feed";
 import { queryKeys } from "@/lib/query-keys";
@@ -30,18 +28,17 @@ import {
   HeartIcon,
   ChatTeardropIcon,
   RepeatIcon,
+  QuotesIcon,
   RobotIcon,
   ArrowSquareOutIcon,
-  ImageSquareIcon,
   SpinnerGapIcon,
   DotsThreeIcon,
   XIcon,
-  ChartBarIcon,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
-import { EmojiPickerButton } from "@/components/ui/emoji-picker-button";
 import { MoreMenu } from "./more-menu";
+import { QuotePostModal } from "./quote-post-modal";
 
 function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment; onContentClick?: () => void; onDelete?: () => void }) {
   return (
@@ -136,43 +133,132 @@ export function CommentActions({
   onLike: () => void;
   onReplyClick?: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const [showRepostMenu, setShowRepostMenu] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [isReposted, setIsReposted] = useState(comment.is_reposted);
+  const [repostCount, setRepostCount] = useState(comment.repost_count);
+  const [isReposting, setIsReposting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showRepostMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowRepostMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showRepostMenu]);
+
+  const handleRepost = async () => {
+    if (isReposting) return;
+    setIsReposting(true);
+    try {
+      if (isReposted) {
+        await feedService.unrepost(comment.id);
+        setIsReposted(false);
+        setRepostCount((c) => c - 1);
+      } else {
+        await feedService.createPost({ content: "", repost_comment_id: comment.id });
+        setIsReposted(true);
+        setRepostCount((c) => c + 1);
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.feed.list() });
+    } catch {
+      toast.error("Failed to update repost");
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/post/${comment.post_id}/comment/${comment.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
+
   return (
-    <div className="mt-3 flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
-      <button
-        onClick={onReplyClick}
-        className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
-      >
-        <ChatTeardropIcon className="h-4 w-4" />
-        <span className="min-w-[1ch]">
-          {comment.reply_count > 0 ? formatNumber(comment.reply_count) : ""}
-        </span>
-      </button>
+    <>
+      <div className="mt-3 flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={onReplyClick}
+          className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
+        >
+          <ChatTeardropIcon className="h-4 w-4" />
+          <span className="min-w-[1ch]">
+            {comment.reply_count > 0 ? formatNumber(comment.reply_count) : ""}
+          </span>
+        </button>
 
-      <button className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-green-500">
-        <RepeatIcon className="h-4 w-4" />
-        <span className="min-w-[1ch]" />
-      </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => { if (isReposted) { handleRepost(); } else { setShowRepostMenu((v) => !v); } }}
+            className={cn(
+              "flex w-10 items-center gap-1 text-sm transition-colors",
+              isReposted ? "text-green-500" : "text-gray-500 hover:text-green-500"
+            )}
+          >
+            <RepeatIcon className="h-4 w-4" />
+            <span className="min-w-[1ch]">
+              {repostCount > 0 ? formatNumber(repostCount) : ""}
+            </span>
+          </button>
 
-      <button
-        onClick={onLike}
-        className={cn(
-          "flex w-10 items-center gap-1 text-sm transition-colors",
-          liked ? "text-red-500" : "text-gray-500 hover:text-red-500"
-        )}
-      >
-        <HeartIcon
-          className="h-4 w-4"
-          weight={liked ? "fill" : "regular"}
+          {showRepostMenu && (
+            <div className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded bg-white border border-[#B0F1ED]/50 shadow backdrop-blur-md">
+              <button
+                onClick={() => { setShowRepostMenu(false); handleRepost(); }}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left text-gray-900 transition-colors hover:bg-[#B0F1ED]/10 hover:cursor-pointer border-b border-[#B0F1ED]/50"
+              >
+                <RepeatIcon className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold">Repost</span>
+              </button>
+              <button
+                onClick={() => { setShowRepostMenu(false); setShowQuoteModal(true); }}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left text-gray-900 transition-colors hover:bg-[#B0F1ED]/10 hover:cursor-pointer"
+              >
+                <QuotesIcon className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold">Quote</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onLike}
+          className={cn(
+            "flex w-10 items-center gap-1 text-sm transition-colors",
+            liked ? "text-red-500" : "text-gray-500 hover:text-red-500"
+          )}
+        >
+          <HeartIcon
+            className="h-4 w-4"
+            weight={liked ? "fill" : "regular"}
+          />
+          <span className="min-w-[1ch]">
+            {likeCount > 0 ? formatNumber(likeCount) : ""}
+          </span>
+        </button>
+
+        <button
+          onClick={handleShare}
+          className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
+        >
+          <ArrowSquareOutIcon className="h-4 w-4" />
+        </button>
+      </div>
+
+      {showQuoteModal && (
+        <QuotePostModal
+          post={comment}
+          repostCommentId={comment.id}
+          onClose={() => setShowQuoteModal(false)}
+          onSuccess={() => setShowQuoteModal(false)}
         />
-        <span className="min-w-[1ch]">
-          {likeCount > 0 ? formatNumber(likeCount) : ""}
-        </span>
-      </button>
-
-      <button className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]">
-        <ArrowSquareOutIcon className="h-4 w-4" />
-      </button>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -199,11 +285,6 @@ function ReplyModal({
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [showPoll, setShowPoll] = useState(false);
   const [poll, setPoll] = useState<CreatePollRequest | null>(null);
-  const [showAgents, setShowAgents] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const agentsDropdownRef = useRef<HTMLDivElement>(null);
-
-  const { data: trendingAgents, isLoading: agentsLoading } = useTrendingAgents();
 
   const {
     content,
@@ -237,17 +318,6 @@ function ReplyModal({
     }
   }, [open, inputRef]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    if (!selected.length) return;
-    setMediaFiles((prev) => [...prev, ...selected].slice(0, MAX_FILES));
-    e.target.value = "";
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
   const handlePaste = (e: React.ClipboardEvent) => {
     const images = Array.from(e.clipboardData.items)
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
@@ -258,24 +328,12 @@ function ReplyModal({
     setMediaFiles((prev) => [...prev, ...images].slice(0, MAX_FILES));
   };
 
-  useEffect(() => {
-    if (!showAgents) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (agentsDropdownRef.current && !agentsDropdownRef.current.contains(e.target as Node)) {
-        setShowAgents(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showAgents]);
-
   const mentionAgent = (agent: Agent) => {
     const handle = agent.username || agent.name || agent.display_name || agent.id;
     const el = inputRef.current;
     const pos = el?.selectionStart ?? content.length;
     const mention = `@${handle} `;
     setContent(content.slice(0, pos) + mention + content.slice(pos));
-    setShowAgents(false);
     requestAnimationFrame(() => {
       if (el) {
         const newPos = pos + mention.length;
@@ -425,88 +483,15 @@ function ReplyModal({
 
       {/* Toolbar — outside overflow so the agents dropdown is never clipped */}
       <div className="mt-2 pl-13">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleFileChange}
+        <PostToolbar
+          onFilesSelected={(files) => setMediaFiles((prev) => [...prev, ...files].slice(0, MAX_FILES))}
+          imageDisabled={mediaFiles.length >= MAX_FILES}
+          onAgentMention={mentionAgent}
+          showPoll={showPoll}
+          onPollToggle={() => { setShowPoll((v) => !v); if (showPoll) setPoll(null); }}
+          onEmojiSelect={insertEmoji}
+          className="gap-4"
         />
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            className="text-gray-400 transition-colors hover:text-gray-600 disabled:opacity-40"
-            disabled={mediaFiles.length >= MAX_FILES}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageSquareIcon className="h-5 w-5" />
-          </button>
-
-          {/* Agents dropdown */}
-          <div className="relative flex items-center" ref={agentsDropdownRef}>
-            <button
-              type="button"
-              className={showAgents ? "text-[#27CEC5]" : "text-gray-400 transition-colors hover:text-gray-600"}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setShowAgents((v) => !v)}
-            >
-              <Image src="/logo-draw.svg" alt="Agents" width={20} height={20} />
-            </button>
-            {showAgents && (
-              <div className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-xl border border-gray-100 bg-white shadow-lg">
-                <p className="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-500">
-                  Trending Agents
-                </p>
-                <div className="max-h-72 overflow-y-auto">
-                  {agentsLoading && (
-                    <p className="px-3 py-3 text-sm text-gray-400">Loading…</p>
-                  )}
-                  {!agentsLoading && !trendingAgents?.length && (
-                    <p className="px-3 py-3 text-sm text-gray-400">No agents found</p>
-                  )}
-                  {trendingAgents?.map((agent, index) => (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => mentionAgent(agent)}
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50"
-                    >
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded"
-                        style={{ backgroundColor: !agent.avatar_url ? AGENT_COLORS[index % AGENT_COLORS.length] : undefined }}
-                      >
-                        {agent.avatar_url ? (
-                          <Image src={agent.avatar_url} alt={getAgentName(agent)} width={32} height={32} className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-xs font-bold text-white">{getAgentName(agent)[0].toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900">{getAgentName(agent)}</p>
-                        {(agent.description || agent.username) && (
-                          <p className="truncate text-xs text-gray-400">{agent.description || `@${agent.username}`}</p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => { setShowPoll((v) => !v); if (showPoll) setPoll(null); }}
-            className={showPoll ? "text-[#27CEC5]" : "text-gray-400 transition-colors hover:text-gray-600"}
-          >
-            <ChartBarIcon className="h-5 w-5" />
-          </button>
-          <EmojiPickerButton onEmojiSelect={insertEmoji} />
-        </div>
         {showPoll && (
           <div className="mt-2">
             <PollCreator
@@ -533,7 +518,7 @@ function ReplyModal({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleRemoveFile(i)}
+                  onClick={() => setMediaFiles((prev) => prev.filter((_, j) => j !== i))}
                   className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-white"
                 >
                   <XIcon className="h-2.5 w-2.5" />

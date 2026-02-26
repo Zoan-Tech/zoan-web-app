@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
 import { feedService } from "@/services/feed";
 import { useMentionInput } from "@/hooks/use-mention-input";
-import { useTrendingAgents } from "@/hooks/use-agents";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
@@ -14,23 +13,16 @@ import { PageContent } from "@/components/ui/page-content";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { MentionDropdown } from "@/components/ui/mention-dropdown";
 import { MentionHighlight } from "@/components/ui/mention-highlight";
-import {
-  CaretLeftIcon,
-  ChartBarIcon,
-  ImageSquareIcon,
-  SpinnerGapIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { PostToolbar } from "@/components/ui/post-toolbar";
+import { CaretLeftIcon, SpinnerGapIcon, XIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { PollCreator } from "@/components/ui/poll-creator";
-import { EmojiPickerButton } from "@/components/ui/emoji-picker-button";
 import { queryKeys } from "@/lib/query-keys";
 import { CreatePollRequest } from "@/types/feed";
-import { Agent, getAgentName } from "@/lib/agents";
+import { Agent } from "@/lib/agents";
 
 const MAX_FILES = 4;
-const AGENT_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -42,39 +34,23 @@ export default function CreatePostPage() {
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [showPoll, setShowPoll] = useState(false);
   const [poll, setPoll] = useState<CreatePollRequest | null>(null);
-  const [showAgents, setShowAgents] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const agentsDropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: trendingAgents, isLoading: agentsLoading } = useTrendingAgents();
+  const {
+    content,
+    setContent,
+    mentionResults,
+    showMentions,
+    selectedIndex,
+    handleKeyDown,
+    selectMention,
+    inputRef,
+  } = useMentionInput();
 
   useEffect(() => {
     const urls = mediaFiles.map((f) => URL.createObjectURL(f));
     setPreviews(urls);
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [mediaFiles]);
-
-  useEffect(() => {
-    if (!showAgents) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (agentsDropdownRef.current && !agentsDropdownRef.current.contains(e.target as Node)) {
-        setShowAgents(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showAgents]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    if (!selected.length) return;
-    setMediaFiles((prev) => {
-      const combined = [...prev, ...selected];
-      return combined.slice(0, MAX_FILES);
-    });
-    // reset input so the same file can be re-selected after removal
-    e.target.value = "";
-  };
 
   const handleRemoveFile = (index: number) => {
     setMediaFiles((prev) => prev.filter((_, i) => i !== index));
@@ -90,26 +66,13 @@ export default function CreatePostPage() {
     setMediaFiles((prev) => [...prev, ...images].slice(0, MAX_FILES));
   };
 
-  const {
-    content,
-    setContent,
-    mentionResults,
-    showMentions,
-    selectedIndex,
-    handleKeyDown,
-    selectMention,
-    inputRef,
-  } = useMentionInput();
-
   const insertEmoji = (emoji: string) => {
     const el = inputRef.current;
     const pos = el?.selectionStart ?? content.length;
     const newContent = content.slice(0, pos) + emoji + content.slice(pos);
     setContent(newContent);
     requestAnimationFrame(() => {
-      if (el) {
-        el.setSelectionRange(pos + emoji.length, pos + emoji.length);
-      }
+      if (el) el.setSelectionRange(pos + emoji.length, pos + emoji.length);
     });
   };
 
@@ -118,9 +81,7 @@ export default function CreatePostPage() {
     const el = inputRef.current;
     const pos = el?.selectionStart ?? content.length;
     const mention = `@${handle} `;
-    const newContent = content.slice(0, pos) + mention + content.slice(pos);
-    setContent(newContent);
-    setShowAgents(false);
+    setContent(content.slice(0, pos) + mention + content.slice(pos));
     requestAnimationFrame(() => {
       if (el) {
         const newPos = pos + mention.length;
@@ -135,7 +96,6 @@ export default function CreatePostPage() {
       toast.error("Please write something");
       return;
     }
-
     setIsLoading(true);
     try {
       await feedService.createPost({
@@ -167,7 +127,7 @@ export default function CreatePostPage() {
           >
             <CaretLeftIcon className="h-5 w-5" />
           </button>
-          <span className="mx-auto text-base font-semibold text-gray-900">
+          <span className="mx-auto font-medium text-sm text-gray-900">
             New post
           </span>
         </div>
@@ -247,108 +207,19 @@ export default function CreatePostPage() {
         )}
 
         {/* Bottom toolbar */}
-        <div className="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white px-4 py-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
+        <div className="sticky bottom-0 flex items-center border-t border-gray-100 bg-white px-4 py-3">
+          <PostToolbar
+            onFilesSelected={(files) => setMediaFiles((prev) => [...prev, ...files].slice(0, MAX_FILES))}
+            imageDisabled={mediaFiles.length >= MAX_FILES}
+            onAgentMention={mentionAgent}
+            showPoll={showPoll}
+            onPollToggle={() => { setShowPoll((v) => !v); if (showPoll) setPoll(null); }}
+            onEmojiSelect={insertEmoji}
           />
-          <button
-            type="button"
-            className="text-gray-400 hover:text-gray-600 disabled:opacity-40"
-            disabled={mediaFiles.length >= MAX_FILES}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageSquareIcon className="h-5 w-5" />
-          </button>
-
-          {/* Agents dropdown */}
-          <div className="relative flex items-center" ref={agentsDropdownRef}>
-            <button
-              type="button"
-              className={showAgents ? "text-[#27CEC5]" : "text-gray-400 hover:text-gray-600"}
-              onClick={() => setShowAgents((v) => !v)}
-            >
-              <Image src="/logo-draw.svg" alt="Logo" width={20} height={20} />
-            </button>
-
-            {showAgents && (
-              <div className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-xl border border-gray-100 bg-white shadow-lg">
-                <p className="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-500">
-                  Trending Agents
-                </p>
-                <div className="max-h-72 overflow-y-auto">
-                  {agentsLoading && (
-                    <p className="px-3 py-3 text-sm text-gray-400">Loading…</p>
-                  )}
-                  {!agentsLoading && !trendingAgents?.length && (
-                    <p className="px-3 py-3 text-sm text-gray-400">No agents found</p>
-                  )}
-                  {trendingAgents?.map((agent, index) => (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onClick={() => mentionAgent(agent)}
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50"
-                    >
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded"
-                        style={{
-                          backgroundColor: !agent.avatar_url
-                            ? AGENT_COLORS[index % AGENT_COLORS.length]
-                            : undefined,
-                        }}
-                      >
-                        {agent.avatar_url ? (
-                          <Image
-                            src={agent.avatar_url}
-                            alt={getAgentName(agent)}
-                            width={32}
-                            height={32}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-xs font-bold text-white">
-                            {getAgentName(agent)[0].toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {getAgentName(agent)}
-                        </p>
-                        {(agent.description || agent.username) && (
-                          <p className="truncate text-xs text-gray-400">
-                            {agent.description || `@${agent.username}`}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => { setShowPoll((v) => !v); if (showPoll) setPoll(null); }}
-            className={showPoll ? "text-[#27CEC5]" : "text-gray-400 hover:text-gray-600"}
-          >
-            <ChartBarIcon className="h-5 w-5" />
-          </button>
-          <EmojiPickerButton onEmojiSelect={insertEmoji} />
-
-          {/* TODO: Stack Thesi */}
-          <div className="ml-auto flex items-center gap-1 text-sm text-gray-400" />
-
           <button
             onClick={handleSubmit}
             disabled={isLoading || !content.trim()}
-            className="rounded-full bg-[#27CEC5] px-5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:cursor-not-allowed disabled:opacity-50"
+            className="ml-auto rounded-full bg-[#27CEC5] px-5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#20b5ad] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <SpinnerGapIcon className="h-4 w-4 animate-spin" />

@@ -19,21 +19,26 @@ export interface Media {
 
 export interface Post {
   id: string;
-  content: string;
   user: User;
+  content: string;
   medias: Media[];
+  reposted_from_post?: Post;
+  reposted_from_comment?: Comment;
   like_count: number;
   repost_count: number;
   reply_count: number;
+  view_count: number;
+  bookmark_count: number;
+  visibility: "public" | "followers" | "mentioned";
+  reply_settings: "everyone" | "followers" | "mentioned";
+  edited_at?: string;
+  created_at: string;
+  poll?: Poll;
+  entities?: PostEntities;
+  // User-specific state (when authenticated)
   is_liked: boolean;
   is_reposted: boolean;
   is_bookmarked: boolean;
-  visibility: "public" | "followers" | "mentioned";
-  reply_settings: "everyone" | "followers" | "mentioned";
-  created_at: string;
-  original_post?: Post;
-  poll?: Poll;
-  entities?: PostEntities;
 }
 
 export interface PostEntities {
@@ -74,12 +79,16 @@ export interface Comment {
   medias: Media[];
   user: User;
   like_count: number;
+  repost_count: number;
   reply_count: number;
-  is_liked: boolean;
   created_at: string;
   replies?: Comment[];
   mentions?: Mention[];
   poll?: Poll;
+  // User-specific state (when authenticated)
+  is_liked: boolean;
+  is_reposted: boolean;
+  is_bookmarked: boolean;
 }
 
 export interface CreatePostRequest {
@@ -88,6 +97,8 @@ export interface CreatePostRequest {
   visibility?: "public" | "followers" | "mentioned";
   reply_settings?: "everyone" | "followers" | "mentioned";
   poll?: CreatePollRequest;
+	repost_post_id?: string;
+  repost_comment_id?: string;
 }
 
 export interface CreatePollRequest {
