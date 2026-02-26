@@ -15,7 +15,17 @@ interface TransactionHistoryModalProps {
 
 function formatTimestamp(ts: string | null): string {
   if (!ts) return "";
-  const d = new Date(ts);
+  // Handle both ISO 8601 (Blockscout V2) and Unix epoch seconds (Etherscan)
+  const num = Number(ts);
+  let d: Date;
+  if (!isNaN(num) && num > 0) {
+    // Unix epoch seconds (numeric string)
+    d = new Date(num * 1000);
+  } else {
+    // ISO 8601 string
+    d = new Date(ts);
+  }
+  if (isNaN(d.getTime())) return "";
   return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -26,6 +36,17 @@ function formatTimestamp(ts: string | null): string {
 
 function shortAddr(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+function formatWeiValue(weiStr: string): string {
+  try {
+    const wei = BigInt(weiStr);
+    if (wei === BigInt(0)) return "0";
+    const eth = Number(wei) / 1e18;
+    return eth < 0.000001 ? "<0.000001" : eth.toFixed(6);
+  } catch {
+    return weiStr;
+  }
 }
 
 export function TransactionHistoryModal({
@@ -58,11 +79,10 @@ export function TransactionHistoryModal({
           {txs.map((tx) => (
             <li key={`${tx.hash}-${tx.direction}`} className="flex items-center gap-3 py-3">
               <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                  tx.direction === "sent"
-                    ? "bg-red-50 text-red-500"
-                    : "bg-green-50 text-green-500"
-                }`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tx.direction === "sent"
+                  ? "bg-red-50 text-red-500"
+                  : "bg-green-50 text-green-500"
+                  }`}
               >
                 {tx.direction === "sent" ? (
                   <ArrowLineUpIcon className="h-4 w-4" weight="bold" />
@@ -77,13 +97,12 @@ export function TransactionHistoryModal({
                     {tx.direction === "sent" ? "Sent" : "Received"}
                   </span>
                   <span
-                    className={`text-sm font-semibold ${
-                      tx.direction === "sent" ? "text-red-500" : "text-green-500"
-                    }`}
+                    className={`text-sm font-semibold ${tx.direction === "sent" ? "text-red-500" : "text-green-500"
+                      }`}
                   >
                     {tx.direction === "sent" ? "-" : "+"}
-                    {tx.value != null ? tx.value.toFixed(6) : "—"}{" "}
-                    {tx.asset ?? chain.symbol}
+                    {tx.value ? formatWeiValue(tx.value) : "—"}{" "}
+                    {chain.symbol}
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between gap-2">

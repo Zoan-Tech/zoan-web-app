@@ -41,6 +41,7 @@ export interface Chain {
   symbol: string;
   rpc_url: string;
   explorer_url: string;
+  explorer_api_url?: string;
   logo_url?: string;
   is_testnet: boolean;
   swap_router_address?: string; // ENI custom DEX router (Uniswap v2-compatible)
