@@ -51,6 +51,7 @@ function mapBackendChain(bc: BackendChain): Chain {
         symbol: bc.native_currency_symbol,
         rpc_url: activeProviders[0]?.rpc_url ?? "",
         explorer_url: bc.explorer_url,
+        explorer_api_url: bc.explorer_api_url || undefined,
         logo_url: bc.logo_url || undefined,
         is_testnet: bc.is_testnet,
     };

@@ -1,24 +1,14 @@
+import { getAccessToken } from "@/lib/api";
+
 export interface Transfer {
   hash: string;
   from: string;
-  to: string | null;
-  value: number | null;
-  asset: string | null;
-  category: string;
-  blockNum: string;
-  timestamp: string | null;
+  to: string;
+  value: string;
+  timestamp: string;
+  blockNumber: string;
+  isError: boolean;
   direction: "sent" | "received";
-}
-
-interface AlchemyTransfer {
-  hash: string;
-  from: string;
-  to: string | null;
-  value: number | null;
-  asset: string | null;
-  category: string;
-  blockNum: string;
-  metadata?: { blockTimestamp?: string };
 }
 
 export interface TokenBalance {
@@ -36,22 +26,21 @@ interface JsonRpcResponse<T> {
   result: T;
 }
 
-interface AlchemyTokenBalanceResult {
-  address: string;
-  tokenBalances: Array<{
-    contractAddress: string;
-    tokenBalance: string;
-  }>;
-}
-
-interface AlchemyTokenMetadata {
-  name: string;
-  symbol: string;
-  decimals: number;
-  logo: string | null;
-}
-
 const RPC_TIMEOUT_MS = 10_000;
+
+/**
+ * Build headers with auth token for internal API calls.
+ */
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getAccessToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 /**
  * Make a JSON-RPC call through our Next.js API proxy to avoid CORS issues.
@@ -67,7 +56,7 @@ async function rpcProxy<T>(
   try {
     const response = await fetch("/api/rpc", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ chainId, method, params }),
       signal: controller.signal,
     });
@@ -127,31 +116,62 @@ export async function getNativeBalance(
 }
 
 /**
- * Fetch ERC20 token balances.
- * NOTE: Without Alchemy's enhanced API, ERC20 token discovery requires a
- * known token list (e.g. from the backend). For now, returns empty.
- * Standard RPC nodes don't support enumerating all ERC20 tokens for an address.
+ * Fetch ERC20 token balances using the block explorer API (via /api/token-scan).
+ * Discovers tokens from transfer history, then checks on-chain balanceOf.
  */
 export async function getTokenBalances(
-  _chainId: number,
-  _address: string
+  chainId: number,
+  address: string
 ): Promise<TokenBalance[]> {
-  // TODO: Implement ERC20 token discovery using a backend token list
-  // instead of Alchemy's alchemy_getTokenBalances method.
-  return [];
+  try {
+    const response = await fetch("/api/token-scan", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ chainId, address }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[TokenBalance] Token scan failed for chain ${chainId}: ${response.status}`);
+      return [];
+    }
+
+    const json = await response.json();
+    if (json.success && Array.isArray(json.data)) {
+      return json.data;
+    }
+    return [];
+  } catch (err) {
+    console.warn("[TokenBalance] Token scan error:", err);
+    return [];
+  }
 }
 
 /**
- * Fetch transaction history.
- * NOTE: Without Alchemy's alchemy_getAssetTransfers, transaction history
- * should be fetched from the backend or block explorer API.
+ * Fetch transaction history using the block explorer API (via /api/token-scan).
  */
 export async function getTransactionHistory(
-  _chainId: number,
-  _address: string
+  chainId: number,
+  address: string
 ): Promise<Transfer[]> {
-  // TODO: Implement transaction history using the backend or explorer API
-  // instead of Alchemy's alchemy_getAssetTransfers method.
-  return [];
-}
+  try {
+    const response = await fetch("/api/token-scan", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ chainId, address, action: "txlist" }),
+    });
 
+    if (!response.ok) {
+      console.warn(`[TokenBalance] Transaction history failed for chain ${chainId}: ${response.status}`);
+      return [];
+    }
+
+    const json = await response.json();
+    if (json.success && Array.isArray(json.data)) {
+      return json.data;
+    }
+    return [];
+  } catch (err) {
+    console.warn("[TokenBalance] Transaction history error:", err);
+    return [];
+  }
+}

@@ -10,16 +10,19 @@ let cacheTimestamp = 0;
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8091/api/v1";
 
-async function getChains(): Promise<Chain[]> {
+async function getChains(authHeader?: string | null): Promise<Chain[]> {
   const now = Date.now();
   if (cachedChains && now - cacheTimestamp < CHAIN_CACHE_TTL_MS) {
     return cachedChains;
   }
 
   try {
-    const res = await fetch(`${BACKEND_URL}/chains`, {
-      headers: { "Content-Type": "application/json" },
-    });
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
+    }
+
+    const res = await fetch(`${BACKEND_URL}/chains`, { headers });
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data?.chains) {
@@ -34,6 +37,7 @@ async function getChains(): Promise<Chain[]> {
             symbol: bc.native_currency_symbol as string,
             rpc_url: (activeProviders[0]?.rpc_url as string) ?? "",
             explorer_url: bc.explorer_url as string,
+            explorer_api_url: (bc.explorer_api_url as string) || undefined,
             logo_url: (bc.logo_url as string) || undefined,
             is_testnet: bc.is_testnet as boolean,
           } satisfies Chain;
@@ -95,7 +99,8 @@ export async function POST(request: NextRequest) {
     }
 
     // RPC URL comes entirely from the backend chain data
-    const chains = await getChains();
+    const authHeader = request.headers.get("authorization");
+    const chains = await getChains(authHeader);
     const rpcUrl = chains.find((c) => c.id === chainId)?.rpc_url;
 
     if (!rpcUrl) {
