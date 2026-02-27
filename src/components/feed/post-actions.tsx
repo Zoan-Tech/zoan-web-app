@@ -9,8 +9,8 @@ import {
   HeartIcon,
   ChatTeardropIcon,
   RepeatIcon,
-  ArrowSquareOutIcon,
   QuotesIcon,
+  ChartLineIcon,
 } from "@phosphor-icons/react";
 import { QuotePostModal } from "./quote-post-modal";
 
@@ -84,15 +84,9 @@ export function PostActions({
     }
   };
 
-  const handleShare = () => {
-    const url = `${window.location.origin}/post/${post.id}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Link copied to clipboard");
-  };
-
   return (
     <>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-15">
         <button
           onClick={onCommentClick}
           className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
@@ -162,12 +156,12 @@ export function PostActions({
           </span>
         </button>
 
-        <button
-          onClick={handleShare}
-          className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
-        >
-          <ArrowSquareOutIcon className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 text-sm text-gray-400">
+          <ChartLineIcon className="h-4 w-4" />
+          <span className="min-w-[1ch]">
+            {post.view_count > 0 ? formatNumber(post.view_count) : ""}
+          </span>
+        </div>
       </div>
 
       {showQuoteModal && (
@@ -179,6 +173,7 @@ export function PostActions({
           }
         />
       )}
+
     </>
   );
 }

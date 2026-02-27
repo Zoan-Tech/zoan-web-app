@@ -30,17 +30,19 @@ import {
   RepeatIcon,
   QuotesIcon,
   RobotIcon,
-  ArrowSquareOutIcon,
   SpinnerGapIcon,
   DotsThreeIcon,
   XIcon,
+  ChartLineIcon,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { MoreMenu } from "./more-menu";
 import { QuotePostModal } from "./quote-post-modal";
+import { BookmarkModal } from "./bookmark-modal";
+import { bookmarkService } from "@/services/bookmark";
 
-function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment; onContentClick?: () => void; onDelete?: () => void }) {
+function CommentHeader({ comment, onContentClick, onDelete, onSave, isBookmarked, onRemoveBookmark }: { comment: Comment; onContentClick?: () => void; onDelete?: () => void; onSave?: () => void; isBookmarked?: boolean; onRemoveBookmark?: () => void }) {
   return (
     <>
       <div className="flex items-start gap-1">
@@ -62,6 +64,9 @@ function CommentHeader({ comment, onContentClick, onDelete }: { comment: Comment
           <MoreMenu
             authorId={comment.user.id}
             onDelete={onDelete}
+            onSave={onSave}
+            isBookmarked={isBookmarked}
+            onRemoveBookmark={onRemoveBookmark}
             copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${comment.post_id}/comment/${comment.id}`}
           />
         </div>
@@ -118,6 +123,26 @@ export function useCommentLike(comment: Comment) {
   };
 
   return { liked, likeCount, handleLike };
+}
+
+export function useCommentBookmark(comment: Comment) {
+  const [isBookmarked, setIsBookmarked] = useState(comment.is_bookmarked);
+  const [bookmarkCount, setBookmarkCount] = useState(comment.bookmark_count);
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+  const handleRemoveBookmark = async () => {
+    try {
+      await bookmarkService.removeCommentBookmark(comment.id);
+      setIsBookmarked(false);
+      setBookmarkCount((c) => c - 1);
+      setShowRemoveConfirm(false);
+    } catch {
+      toast.error("Failed to remove bookmark");
+    }
+  };
+
+  return { isBookmarked, bookmarkCount, showBookmarkModal, setShowBookmarkModal, showRemoveConfirm, setShowRemoveConfirm, handleRemoveBookmark };
 }
 
 export function CommentActions({
@@ -181,7 +206,7 @@ export function CommentActions({
 
   return (
     <>
-      <div className="mt-3 flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-3 flex items-center gap-15" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onReplyClick}
           className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
@@ -242,12 +267,13 @@ export function CommentActions({
           </span>
         </button>
 
-        <button
-          onClick={handleShare}
-          className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
-        >
-          <ArrowSquareOutIcon className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 text-sm text-gray-400">
+          <ChartLineIcon className="h-4 w-4" />
+          <span className="min-w-[1ch]">
+            {comment.view_count > 0 ? formatNumber(comment.view_count) : ""}
+          </span>
+        </div>
+
       </div>
 
       {showQuoteModal && (
@@ -547,10 +573,11 @@ function InlineReplyContent({
   onDelete?: () => void;
 }) {
   const { liked, likeCount, handleLike } = useCommentLike(comment);
+  const { isBookmarked, showBookmarkModal, setShowBookmarkModal, showRemoveConfirm, setShowRemoveConfirm, handleRemoveBookmark } = useCommentBookmark(comment);
 
   return (
     <>
-      <CommentHeader comment={comment} onContentClick={onContentClick} onDelete={onDelete} />
+      <CommentHeader comment={comment} onContentClick={onContentClick} onDelete={onDelete} onSave={() => setShowBookmarkModal(true)} isBookmarked={isBookmarked} onRemoveBookmark={() => setShowRemoveConfirm(true)} />
       <CommentActions
         comment={comment}
         liked={liked}
@@ -558,6 +585,20 @@ function InlineReplyContent({
         onLike={handleLike}
         onReplyClick={onReplyClick}
       />
+      {showBookmarkModal && (
+        <BookmarkModal
+          onSave={(collectionId) => bookmarkService.bookmarkComment(comment.id, collectionId)}
+          onClose={() => setShowBookmarkModal(false)}
+          onSuccess={() => { setShowBookmarkModal(false); }}
+        />
+      )}
+      <Modal open={showRemoveConfirm} onClose={() => setShowRemoveConfirm(false)} title="Remove bookmark?">
+        <p className="text-sm text-gray-600 mb-6">This will remove this comment from your bookmarks.</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setShowRemoveConfirm(false)} className="rounded-full px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+          <button onClick={handleRemoveBookmark} className="rounded-full px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">Remove</button>
+        </div>
+      </Modal>
     </>
   );
 }
@@ -566,6 +607,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
   const router = useRouter();
   const { user: currentUser } = useAuthStore();
   const { liked, likeCount, handleLike } = useCommentLike(comment);
+  const { isBookmarked, showBookmarkModal, setShowBookmarkModal, showRemoveConfirm, setShowRemoveConfirm, handleRemoveBookmark } = useCommentBookmark(comment);
 
   const mergedComment = currentUser?.id === comment.user.id
     ? { ...comment, user: { ...comment.user, ...currentUser } }
@@ -610,7 +652,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
             showThreadLine && "pb-3"
           )}
         >
-          <CommentHeader comment={mergedComment} onContentClick={isClickable ? () => router.push(`/post/${mergedComment.post_id}/comment/${mergedComment.id}`) : undefined} onDelete={handleDelete} />
+          <CommentHeader comment={mergedComment} onContentClick={isClickable ? () => router.push(`/post/${mergedComment.post_id}/comment/${mergedComment.id}`) : undefined} onDelete={handleDelete} onSave={() => setShowBookmarkModal(true)} isBookmarked={isBookmarked} onRemoveBookmark={() => setShowRemoveConfirm(true)} />
           <CommentActions
             comment={mergedComment}
             liked={liked}
@@ -683,6 +725,21 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
           onReplyCreated={() => refetchReplies()}
         />
       )}
+
+      {showBookmarkModal && (
+        <BookmarkModal
+          onSave={(collectionId) => bookmarkService.bookmarkComment(comment.id, collectionId)}
+          onClose={() => setShowBookmarkModal(false)}
+          onSuccess={() => setShowBookmarkModal(false)}
+        />
+      )}
+      <Modal open={showRemoveConfirm} onClose={() => setShowRemoveConfirm(false)} title="Remove bookmark?">
+        <p className="text-sm text-gray-600 mb-6">This will remove this comment from your bookmarks.</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setShowRemoveConfirm(false)} className="rounded-full px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+          <button onClick={handleRemoveBookmark} className="rounded-full px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">Remove</button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -81,6 +81,8 @@ export interface Comment {
   like_count: number;
   repost_count: number;
   reply_count: number;
+  view_count: number;
+  bookmark_count: number;
   created_at: string;
   replies?: Comment[];
   mentions?: Mention[];
