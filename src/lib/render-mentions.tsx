@@ -36,6 +36,7 @@ export function renderContentWithMentions(
   const markdown = raw.replace(/\\n/g, "\n");
 
   return (
+    <div className="wrap-break-word min-w-0">
     <Markdown
       components={{
         a({ href, children }) {
@@ -77,9 +78,25 @@ export function renderContentWithMentions(
         li({ children }) {
           return <li className="mb-0.5">{children}</li>;
         },
+        code({ children, className }) {
+          const isBlock = className?.startsWith("language-");
+          if (isBlock) {
+            return (
+              <pre className="overflow-x-auto rounded-md bg-white/10 p-3 my-2 text-xs">
+                <code className={className}>{children}</code>
+              </pre>
+            );
+          }
+          return (
+            <code className="rounded bg-white/10 px-1 py-0.5 text-xs">
+              {children}
+            </code>
+          );
+        },
       }}
     >
       {markdown}
     </Markdown>
+    </div>
   );
 }

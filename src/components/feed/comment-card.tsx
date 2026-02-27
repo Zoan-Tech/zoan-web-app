@@ -182,7 +182,7 @@ export function CommentActions({
     setIsReposting(true);
     try {
       if (isReposted) {
-        await feedService.unrepost(comment.id);
+        await feedService.unrepostComment(comment.id);
         setIsReposted(false);
         setRepostCount((c) => c - 1);
       } else {

@@ -66,6 +66,10 @@ export const feedService = {
     await api.delete(`/posts/${postId}/repost`);
   },
 
+  async unrepostComment(commentId: string): Promise<void> {
+    await api.delete(`/comments/${commentId}/repost`);
+  },
+
   async bookmarkPost(postId: string): Promise<void> {
     await api.post(`/posts/${postId}/bookmark`);
   },
