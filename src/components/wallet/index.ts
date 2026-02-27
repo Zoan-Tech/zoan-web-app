@@ -1,6 +1,11 @@
 export { ReceiveModal } from "./receive-modal";
-export { SendForm } from "./send-form";
+export { SendForm } from "./send/send-form";
+export { SendModal } from "./send/send-modal";
 export { TransactionConfirmDialog } from "./transaction-confirm-dialog";
-export { SwapForm } from "./swap-form";
-export { SwapConfirmDialog } from "./swap-confirm-dialog";
+export { SwapForm } from "./swap/swap-form";
+export { SwapModal } from "./swap/swap-modal";
+export { SwapConfirmDialog } from "./swap/swap-confirm-dialog";
 export { TransactionHistoryModal } from "./transaction-history-modal";
+export { BridgeForm } from "./bridge/bridge-form";
+export { BridgeModal } from "./bridge/bridge-modal";
+export { BridgeConfirmDialog } from "./bridge/bridge-confirm-dialog";

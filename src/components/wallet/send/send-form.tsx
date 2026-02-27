@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useTokenBalances, type TokenWithPrice } from "@/hooks/use-token-balances";
+import { useTokenBalances } from "@/hooks/use-token-balances";
 import { useGasEstimation, type GasEstimation } from "@/hooks/use-gas-estimation";
 import { encodeErc20Transfer, parseTokenAmount } from "@/lib/wallet/erc20";
 import { formatUsd } from "@/services/token-price";
 import { FormInput } from "@/components/ui/form-input";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { TransactionConfirmDialog } from "./transaction-confirm-dialog";
+import { TransactionConfirmDialog } from "../transaction-confirm-dialog";
 import type { Chain } from "@/types/wallet";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 interface SendFormProps {
   address: string;
@@ -19,6 +19,7 @@ interface SendFormProps {
   chain: Chain;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   embeddedWallet: any;
+  onClose?: () => void;
 }
 
 type SelectedToken = "native" | string; // "native" or ERC20 contract address
@@ -47,9 +48,9 @@ export function SendForm({
   chainId,
   chain,
   embeddedWallet,
+  onClose,
 }: SendFormProps) {
-  const router = useRouter();
-  const { nativeBalance, nativeUsdPrice, nativeUsdValue, tokens } =
+  const { nativeBalance, nativeUsdPrice, tokens } =
     useTokenBalances(address, chainId);
   const { estimate, isEstimating } = useGasEstimation();
 
@@ -199,7 +200,7 @@ export function SendForm({
         },
       });
 
-      router.push("/wallet");
+      onClose?.();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown error";
@@ -269,9 +270,11 @@ export function SendForm({
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
                     {token.logo_url ? (
-                      <img
+                      <Image
                         src={token.logo_url}
                         alt={token.symbol}
+                        width={32}
+                        height={32}
                         className="h-8 w-8 rounded-full"
                       />
                     ) : (

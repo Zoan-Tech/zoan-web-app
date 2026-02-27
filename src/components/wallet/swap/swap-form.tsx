@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import { useSwapQuote } from "@/hooks/use-swap-quote";
 import { checkAllowance, encodeApproval, isSwapSupported } from "@/services/swap";
@@ -11,11 +10,12 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SwapConfirmDialog } from "./swap-confirm-dialog";
 import type { Chain } from "@/types/wallet";
 import {
-  ArrowsDownUpIcon,
+  ArrowsVerticalIcon,
   CaretDownIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 interface SwapFormProps {
   address: string;
@@ -23,6 +23,7 @@ interface SwapFormProps {
   chain: Chain;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   embeddedWallet: any;
+  onClose?: () => void;
 }
 
 type SelectedToken = "native" | string;
@@ -34,8 +35,7 @@ const SLIPPAGE_OPTIONS = [
   { label: "3%", bps: 300 },
 ];
 
-export function SwapForm({ address, chainId, chain, embeddedWallet }: SwapFormProps) {
-  const router = useRouter();
+export function SwapForm({ address, chainId, chain, embeddedWallet, onClose }: SwapFormProps) {
   const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, chainId);
 
   const [fromToken, setFromToken] = useState<SelectedToken>("native");
@@ -204,7 +204,7 @@ export function SwapForm({ address, chainId, chain, embeddedWallet }: SwapFormPr
         },
       });
 
-      router.push("/wallet");
+      onClose?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error("Swap failed", { description: message });
@@ -233,7 +233,7 @@ export function SwapForm({ address, chainId, chain, embeddedWallet }: SwapFormPr
           </p>
         </div>
         <button
-          onClick={() => router.push("/wallet")}
+          onClick={() => onClose?.()}
           className="text-sm text-[#27CEC5] hover:underline"
         >
           Back to Wallet
@@ -244,132 +244,135 @@ export function SwapForm({ address, chainId, chain, embeddedWallet }: SwapFormPr
 
   return (
     <div className="space-y-3">
+      {/* Panels group */}
+      <div className="flex flex-col gap-2">
       {/* From */}
-      <div className="rounded-xl border border-gray-200 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-500">You pay</span>
-          <span className="text-xs text-gray-400">
-            Balance: {fromBalance} {fromSymbol}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Token picker */}
-          <div className="relative shrink-0" ref={fromSelectorRef}>
-            <button
-              onClick={() => {
-                setShowFromSelector(!showFromSelector);
-                setShowToSelector(false);
-              }}
-              className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-200"
-            >
-              {fromLogoUrl ? (
-                <img src={fromLogoUrl} alt={fromSymbol} className="h-5 w-5 rounded-full" />
-              ) : (
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-300">
-                  <span className="text-xs font-bold">{fromSymbol[0]}</span>
-                </div>
-              )}
-              {fromSymbol}
-              <CaretDownIcon className="h-3.5 w-3.5 text-gray-500" />
-            </button>
-
-            {showFromSelector && (
-              <TokenDropdown
-                chainSymbol={chain.symbol}
-                chainName={chain.name}
-                chainLogoUrl={chain.logo_url}
-                nativeBalance={nativeBalance}
-                tokens={tokens}
-                selected={fromToken}
-                onSelect={handleSelectFrom}
-              />
-            )}
+        <div className="rounded-xl border border-gray-200 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">You pay</span>
+            <span className="text-xs text-gray-400">
+              Balance: {fromBalance} {fromSymbol}
+            </span>
           </div>
 
-          {/* Amount input */}
-          <div className="flex-1 text-right">
-            <input
-              type="text"
-              inputMode="decimal"
-              placeholder="0.0"
-              value={fromAmount}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (/^[0-9]*\.?[0-9]*$/.test(val)) setFromAmount(val);
-              }}
-              className="w-full bg-transparent text-right text-xl font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <span className="text-xs text-gray-400">{formatUsd(fromAmountUsd)}</span>
+          <div className="flex items-center gap-3">
+            {/* Token picker */}
+            <div className="relative shrink-0" ref={fromSelectorRef}>
               <button
-                onClick={handleMaxAmount}
-                className="rounded bg-[#E0FAF8] px-1.5 py-0.5 text-xs font-semibold text-[#27CEC5] hover:bg-[#c8f5f1]"
+                onClick={() => {
+                  setShowFromSelector(!showFromSelector);
+                  setShowToSelector(false);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-200"
               >
-                MAX
+                {fromLogoUrl ? (
+                  <Image src={fromLogoUrl} alt={fromSymbol} width={20} height={20} className="h-5 w-5 rounded" unoptimized />
+                ) : (
+                  <div className="flex h-5 w-5 items-center justify-center rounded bg-gray-300">
+                    <span className="text-xs font-bold">{fromSymbol[0]}</span>
+                  </div>
+                )}
+                {fromSymbol}
+                <CaretDownIcon className="h-3.5 w-3.5 text-gray-500" />
               </button>
+
+              {showFromSelector && (
+                <TokenDropdown
+                  chainSymbol={chain.symbol}
+                  chainName={chain.name}
+                  chainLogoUrl={chain.logo_url}
+                  nativeBalance={nativeBalance}
+                  tokens={tokens}
+                  selected={fromToken}
+                  onSelect={handleSelectFrom}
+                />
+              )}
+            </div>
+
+            {/* Amount input */}
+            <div className="flex-1 text-right">
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0.0"
+                value={fromAmount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^[0-9]*\.?[0-9]*$/.test(val)) setFromAmount(val);
+                }}
+                className="w-full bg-transparent text-right text-xl font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-xs text-gray-400">{formatUsd(fromAmountUsd)}</span>
+                <button
+                  onClick={handleMaxAmount}
+                  className="rounded bg-[#E0FAF8] px-1.5 py-0.5 text-xs font-semibold text-[#27CEC5] hover:bg-[#c8f5f1]"
+                >
+                  MAX
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Flip button */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleFlip}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
-        >
-          <ArrowsDownUpIcon className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* To */}
-      <div className="rounded-xl border border-gray-200 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-500">You receive</span>
-          {isQuoteLoading && <LoadingSpinner size="sm" />}
+        {/* Flip button */}
+        <div className="relative z-10 -my-4.5 flex justify-center">
+          <button
+            onClick={handleFlip}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+          >
+            <ArrowsVerticalIcon className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Token picker */}
-          <div className="relative shrink-0" ref={toSelectorRef}>
-            <button
-              onClick={() => {
-                setShowToSelector(!showToSelector);
-                setShowFromSelector(false);
-              }}
-              className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-200"
-            >
-              {toLogoUrl ? (
-                <img src={toLogoUrl} alt={toSymbol} className="h-5 w-5 rounded-full" />
-              ) : (
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-300">
-                  <span className="text-xs font-bold">{toSymbol[0]}</span>
-                </div>
-              )}
-              {toSymbol}
-              <CaretDownIcon className="h-3.5 w-3.5 text-gray-500" />
-            </button>
-
-            {showToSelector && (
-              <TokenDropdown
-                chainSymbol={chain.symbol}
-                chainName={chain.name}
-                chainLogoUrl={chain.logo_url}
-                nativeBalance={nativeBalance}
-                tokens={tokens}
-                selected={toToken}
-                onSelect={handleSelectTo}
-              />
-            )}
+        {/* To */}
+        <div className="rounded-xl border border-gray-200 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">You receive</span>
+            {isQuoteLoading && <LoadingSpinner size="sm" />}
           </div>
 
-          {/* Output amount (read-only) */}
-          <div className="flex-1 text-right">
-            <p className="text-xl font-semibold text-[#27CEC5]">
-              {isQuoteLoading ? "…" : toAmountFormatted || "0.0"}
-            </p>
-            <p className="text-xs text-gray-400">{formatUsd(toAmountUsd)}</p>
+          <div className="flex items-center gap-3">
+            {/* Token picker */}
+            <div className="relative shrink-0" ref={toSelectorRef}>
+              <button
+                onClick={() => {
+                  setShowToSelector(!showToSelector);
+                  setShowFromSelector(false);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-200"
+              >
+                {toLogoUrl ? (
+                  <Image src={toLogoUrl} alt={toSymbol} width={20} height={20} className="h-5 w-5 rounded" unoptimized />
+                ) : (
+                  <div className="flex h-5 w-5 items-center justify-center rounded bg-gray-300">
+                    <span className="text-xs font-bold">{toSymbol[0]}</span>
+                  </div>
+                )}
+                {toSymbol}
+                <CaretDownIcon className="h-3.5 w-3.5 text-gray-500" />
+              </button>
+
+              {showToSelector && (
+                <TokenDropdown
+                  chainSymbol={chain.symbol}
+                  chainName={chain.name}
+                  chainLogoUrl={chain.logo_url}
+                  nativeBalance={nativeBalance}
+                  tokens={tokens}
+                  selected={toToken}
+                  onSelect={handleSelectTo}
+                />
+              )}
+            </div>
+
+            {/* Output amount (read-only) */}
+            <div className="flex-1 text-right">
+              <p className="text-xl font-semibold text-[#27CEC5]">
+                {isQuoteLoading ? "…" : toAmountFormatted || "0.0"}
+              </p>
+              <p className="text-xs text-gray-400">{formatUsd(toAmountUsd)}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -480,9 +483,9 @@ function TokenDropdown({
         }`}
       >
         {chainLogoUrl ? (
-          <img src={chainLogoUrl} alt={chainSymbol} className="h-8 w-8 rounded-full" />
+          <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
             <span className="text-xs font-bold">{chainSymbol[0]}</span>
           </div>
         )}
@@ -503,9 +506,9 @@ function TokenDropdown({
           }`}
         >
           {token.logo_url ? (
-            <img src={token.logo_url} alt={token.symbol} className="h-8 w-8 rounded-full" />
+            <Image src={token.logo_url} alt={token.symbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
               <span className="text-xs font-bold">{token.symbol[0]}</span>
             </div>
           )}
@@ -540,5 +543,4 @@ async function waitForTx(chainId: number, txHash: string): Promise<void> {
       // continue polling
     }
   }
-  // Don't throw — proceed optimistically even if receipt not found
 }
