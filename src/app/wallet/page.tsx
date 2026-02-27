@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useWallets } from "@privy-io/react-auth";
-import { ReceiveModal, TransactionHistoryModal } from "@/components/wallet";
+import { ReceiveModal, TransactionHistoryModal, SendModal, SwapModal, BridgeModal } from "@/components/wallet";
 import { AppShell } from "@/components/layout";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,6 +16,7 @@ import {
   ArrowLineUpIcon,
   ArrowLineDownIcon,
   ArrowsLeftRightIcon,
+  ArrowsHorizontalIcon,
   BankIcon,
   CheckIcon,
   CaretLeftIcon,
@@ -76,8 +77,11 @@ export default function WalletPage() {
   const [showChainSelector, setShowChainSelector] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showBridgeModal, setShowBridgeModal] = useState(false);
 
-  const { mainnets, testnets, getChainById, isLoading: isChainsLoading } = useChains();
+  const { mainnets, testnets, getChainById } = useChains();
 
   const embeddedWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"
@@ -149,7 +153,10 @@ export default function WalletPage() {
 
             <div className="mt-4 flex gap-2">
               {/* Deposit */}
-              <button className="flex-1 rounded-md bg-gray-900 h-8.75 text-sm font-semibold text-white transition-colors hover:bg-gray-800">
+              <button
+                onClick={() => setShowReceiveModal(true)}
+                className="flex-1 rounded-md bg-gray-900 h-8.75 text-sm font-semibold text-white transition-colors hover:bg-gray-800 hover:cursor-pointer"
+              >
                 Deposit
               </button>
 
@@ -257,23 +264,21 @@ export default function WalletPage() {
             <div className="flex justify-center gap-4">
               {[
                 {
-                  icon: <ArrowLineDownIcon className="h-5 w-5 font-semibold" />,
-                  label: "Receive",
-                  onClick: () => setShowReceiveModal(true),
+                  icon: <ArrowLineUpIcon className="h-5 w-5 font-semibold" />,
+                  label: "Send",
+                  onClick: () => setShowSendModal(true),
                   disabled: false,
                 },
                 {
-                  icon: <ArrowLineUpIcon className="h-5 w-5 font-semibold" />,
-                  label: "Send",
-                  onClick: () =>
-                    router.push(`/wallet/send?chainId=${selectedChainId}`),
+                  icon: <ArrowsHorizontalIcon className="h-5 w-5 font-semibold" />,
+                  label: "Swap",
+                  onClick: () => setShowSwapModal(true),
                   disabled: false,
                 },
                 {
                   icon: <ArrowsLeftRightIcon className="h-5 w-5 font-semibold" />,
-                  label: "Swap",
-                  onClick: () =>
-                    router.push(`/wallet/swap?chainId=${selectedChainId}`),
+                  label: "Bridge",
+                  onClick: () => setShowBridgeModal(true),
                   disabled: false,
                 },
                 {
@@ -359,6 +364,21 @@ export default function WalletPage() {
             chain={selectedChain}
           />
         )}
+        <SendModal
+          open={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          initialChainId={selectedChainId}
+        />
+        <SwapModal
+          open={showSwapModal}
+          onClose={() => setShowSwapModal(false)}
+          initialChainId={selectedChainId}
+        />
+        <BridgeModal
+          open={showBridgeModal}
+          onClose={() => setShowBridgeModal(false)}
+          initialChainId={selectedChainId}
+        />
       </PageContent>
     </AppShell>
   );
