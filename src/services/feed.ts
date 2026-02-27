@@ -132,6 +132,20 @@ export const feedService = {
     return response.data;
   },
 
+  async getLikedPosts(page: number = 1): Promise<FeedResponse> {
+    const response = await api.get("/posts/liked", {
+      params: { page, per_page: 20 },
+    });
+    return response.data;
+  },
+
+  async getPollPosts(page: number = 1): Promise<FeedResponse> {
+    const response = await api.get("/posts/poll", {
+      params: { page, per_page: 20 },
+    });
+    return response.data;
+  },
+
   async votePoll(pollId: string, optionId: string): Promise<void> {
     await api.post(`/polls/${pollId}/vote`, {
       option_id: optionId,

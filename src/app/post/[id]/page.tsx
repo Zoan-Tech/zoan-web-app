@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { feedService } from "@/services/feed";
+import { bookmarkService } from "@/services/bookmark";
 import { AppShell } from "@/components/layout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageContent } from "@/components/ui/page-content";
@@ -18,6 +19,7 @@ import { renderContentWithMentions } from "@/lib/render-mentions";
 import { MediaGrid } from "@/components/ui/media-grid";
 import { PollDisplay } from "@/components/ui/poll-display";
 import { CaretLeftIcon } from "@phosphor-icons/react";
+import { BookmarkModal } from "@/components/feed/bookmark-modal";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
 import { useSSE } from "@/providers/sse-provider";
@@ -71,6 +73,8 @@ export default function PostDetailPage() {
     const unsubscribe = subscribe('post-detail', handleCommentCreated);
     return unsubscribe;
   }, [subscribe, handleCommentCreated]);
+
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false);
 
   const handlePostUpdate = (updatedPost: Post) => {
     queryClient.setQueryData(queryKeys.post.byId(postId), updatedPost);
@@ -162,6 +166,7 @@ export default function PostDetailPage() {
                         toast.error("Failed to delete post");
                       }
                     }}
+                    onSave={() => setShowBookmarkModal(true)}
                     copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
                   />
                 </div>
@@ -230,6 +235,16 @@ export default function PostDetailPage() {
           ))
         ) : null}
       </PageContent>
+
+      {showBookmarkModal && post && (
+        <BookmarkModal
+          onSave={(collectionId) => bookmarkService.bookmarkPost(post.id, collectionId)}
+          onClose={() => setShowBookmarkModal(false)}
+          onSuccess={() =>
+            handlePostUpdate({ ...post, is_bookmarked: true, bookmark_count: post.bookmark_count + 1 })
+          }
+        />
+      )}
     </AppShell>
   );
 }

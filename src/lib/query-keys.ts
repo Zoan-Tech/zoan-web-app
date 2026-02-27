@@ -51,6 +51,26 @@ export const queryKeys = {
     byCommentId: (commentId: string) => [...queryKeys.commentReplies.all, commentId] as const,
   },
 
+  // Liked posts queries (current user, no userId needed)
+  likedPosts: {
+    all: ["likedPosts"] as const,
+    list: () => [...queryKeys.likedPosts.all] as const,
+  },
+
+  // Poll posts queries
+  pollPosts: {
+    all: ["pollPosts"] as const,
+    list: () => [...queryKeys.pollPosts.all] as const,
+  },
+
+  // Bookmark collections
+  bookmarkCollections: {
+    all: ["bookmarkCollections"] as const,
+    list: () => [...queryKeys.bookmarkCollections.all] as const,
+    posts: (collectionId: string) => [...queryKeys.bookmarkCollections.all, collectionId, "posts"] as const,
+    quickSaves: () => [...queryKeys.bookmarkCollections.all, "quick"] as const,
+  },
+
   // Notification queries
   notifications: {
     all: ["notifications"] as const,

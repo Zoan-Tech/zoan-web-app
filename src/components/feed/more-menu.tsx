@@ -30,6 +30,10 @@ interface MoreMenuProps {
   onDelete?: () => void;
   /** Called when "Save" is clicked */
   onSave?: () => void;
+  /** Whether the post/comment is already bookmarked */
+  isBookmarked?: boolean;
+  /** Called when "Saved" is clicked (remove bookmark) */
+  onRemoveBookmark?: () => void;
   /** Called when "Mute" is clicked */
   onMute?: () => void;
   /** Called when "Block" is clicked */
@@ -46,6 +50,8 @@ export function MoreMenu({
   authorId,
   onDelete,
   onSave,
+  isBookmarked,
+  onRemoveBookmark,
   onMute,
   onBlock,
   onReport,
@@ -117,9 +123,9 @@ export function MoreMenu({
     },
     "divider",
     {
-      label: "Save",
-      icon: <BookmarkSimpleIcon className="h-5 w-5" />,
-      onClick: wrap(onSave),
+      label: isBookmarked ? "Saved" : "Save",
+      icon: <BookmarkSimpleIcon className="h-5 w-5" weight={isBookmarked ? "fill" : "regular"} />,
+      onClick: isBookmarked ? wrap(onRemoveBookmark) : wrap(onSave),
     },
     {
       label: "Pin",
@@ -143,9 +149,9 @@ export function MoreMenu({
 
   const otherItems: (MenuItem | "divider")[] = [
     {
-      label: "Save",
-      icon: <BookmarkSimpleIcon className="h-5 w-5" />,
-      onClick: wrap(onSave),
+      label: isBookmarked ? "Saved" : "Save",
+      icon: <BookmarkSimpleIcon className="h-5 w-5" weight={isBookmarked ? "fill" : "regular"} />,
+      onClick: isBookmarked ? wrap(onRemoveBookmark) : wrap(onSave),
     },
     {
       label: "Not interested",

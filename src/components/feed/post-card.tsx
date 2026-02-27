@@ -8,8 +8,8 @@ import {
   HeartIcon,
   ChatTeardropIcon,
   RepeatIcon,
-  ArrowSquareOutIcon,
   QuotesIcon,
+  ChartLineIcon,
 } from "@phosphor-icons/react";
 import { MoreMenu } from "./more-menu";
 import { Post, Comment } from "@/types/feed";
@@ -18,11 +18,14 @@ import { renderContentWithMentions } from "@/lib/render-mentions";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { feedService } from "@/services/feed";
+import { bookmarkService } from "@/services/bookmark";
 import { useAuthStore } from "@/stores/auth";
 import { toast } from "sonner";
 import { MediaGrid } from "@/components/ui/media-grid";
 import { PollDisplay } from "@/components/ui/poll-display";
 import { QuotePostModal } from "./quote-post-modal";
+import { BookmarkModal } from "./bookmark-modal";
+import { Modal } from "@/components/ui/modal";
 
 export function RepostedFromCard({ source, type }: { source: Post | Comment; type: "post" | "comment" }) {
   const router = useRouter();
@@ -87,6 +90,8 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
   const [isReposting, setIsReposting] = useState(false);
   const [showRepostMenu, setShowRepostMenu] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false);
+  const [showRemoveBookmarkConfirm, setShowRemoveBookmarkConfirm] = useState(false);
   const repostMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -161,6 +166,16 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
     }
   };
 
+  const handleRemoveBookmark = async () => {
+    try {
+      await bookmarkService.removeBookmark(post.id);
+      onUpdate?.({ ...post, is_bookmarked: false, bookmark_count: post.bookmark_count - 1 });
+      setShowRemoveBookmarkConfirm(false);
+    } catch {
+      toast.error("Failed to remove bookmark");
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await feedService.deletePost(post.id);
@@ -169,14 +184,6 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
     } catch {
       toast.error("Failed to delete post");
     }
-  };
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/post/${post.id}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Link copied to clipboard");
   };
 
   return (
@@ -212,6 +219,9 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
               <MoreMenu
                 authorId={displayUser.id}
                 onDelete={handleDelete}
+                onSave={() => setShowBookmarkModal(true)}
+                isBookmarked={post.is_bookmarked}
+                onRemoveBookmark={() => setShowRemoveBookmarkConfirm(true)}
                 copyUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
               />
             </div>
@@ -245,7 +255,7 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
           )}
 
           {/* Actions */}
-          <div className="mt-3 flex items-center gap-6">
+          <div className="mt-3 flex items-center gap-15">
             <Link
               href={`/post/${post.id}`}
               className="flex w-10 items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
@@ -310,12 +320,12 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
               </span>
             </button>
 
-            <button
-              onClick={handleShare}
-              className="text-sm text-gray-500 transition-colors hover:text-[#27CEC5]"
-            >
-              <ArrowSquareOutIcon className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1 text-sm text-gray-400">
+              <ChartLineIcon className="h-4 w-4" />
+              <span className="min-w-[1ch]">
+                {post.view_count > 0 ? formatNumber(post.view_count) : ""}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -330,6 +340,34 @@ export function PostCard({ post, onUpdate, onDelete }: Props) {
         }
       />
     )}
+
+    {showBookmarkModal && (
+      <BookmarkModal
+        onSave={(collectionId) => bookmarkService.bookmarkPost(post.id, collectionId)}
+        onClose={() => setShowBookmarkModal(false)}
+        onSuccess={() =>
+          onUpdate?.({ ...post, is_bookmarked: true, bookmark_count: post.bookmark_count + 1 })
+        }
+      />
+    )}
+
+    <Modal open={showRemoveBookmarkConfirm} onClose={() => setShowRemoveBookmarkConfirm(false)} title="Remove bookmark?">
+      <p className="text-sm text-gray-600 mb-6">This will remove this post from your bookmarks.</p>
+      <div className="flex gap-3 justify-end">
+        <button
+          onClick={() => setShowRemoveBookmarkConfirm(false)}
+          className="rounded-full px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleRemoveBookmark}
+          className="rounded-full px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+        >
+          Remove
+        </button>
+      </div>
+    </Modal>
     </>
   );
 }
