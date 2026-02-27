@@ -149,12 +149,14 @@ export function CommentActions({
   comment,
   liked,
   likeCount,
+  replyCount,
   onLike,
   onReplyClick,
 }: {
   comment: Comment;
   liked: boolean;
   likeCount: number;
+  replyCount?: number;
   onLike: () => void;
   onReplyClick?: () => void;
 }) {
@@ -213,7 +215,7 @@ export function CommentActions({
         >
           <ChatTeardropIcon className="h-4 w-4" />
           <span className="min-w-[1ch]">
-            {comment.reply_count > 0 ? formatNumber(comment.reply_count) : ""}
+            {(replyCount ?? comment.reply_count) > 0 ? formatNumber(replyCount ?? comment.reply_count) : ""}
           </span>
         </button>
 
@@ -613,6 +615,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
     ? { ...comment, user: { ...comment.user, ...currentUser } }
     : comment;
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null);
+  const [replyCount, setReplyCount] = useState(comment.reply_count);
 
   const handleDelete = async () => {
     try {
@@ -657,6 +660,7 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
             comment={mergedComment}
             liked={liked}
             likeCount={likeCount}
+            replyCount={replyCount}
             onLike={handleLike}
             onReplyClick={() => setReplyTarget(comment)}
           />
@@ -722,7 +726,10 @@ export function CommentCard({ comment, onDelete }: { comment: Comment; onDelete?
           open={!!replyTarget}
           onClose={() => setReplyTarget(null)}
           comment={replyTarget}
-          onReplyCreated={() => refetchReplies()}
+          onReplyCreated={() => {
+            if (replyTarget?.id === comment.id) setReplyCount((c) => c + 1);
+            refetchReplies();
+          }}
         />
       )}
 
