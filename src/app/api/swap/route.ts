@@ -11,15 +11,27 @@ const DEFAULT_GAS_LIMIT_HEX = "0x7a120"; // 500_000
 
 const eniRouterAbi = [
   {
-    name: "exchange",
+    name: "swapExactTokensForTokensSupportingFeeOnTransferTokens",
     type: "function",
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     inputs: [
-      { name: "tokenIn", type: "address" },
-      { name: "tokenOut", type: "address" },
-      { name: "amount", type: "uint256" },
+      { name: "amountIn", type: "uint256" },
+      { name: "amountOutMin", type: "uint256" },
+      { name: "path", type: "address[]" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
     ],
-    outputs: [{ name: "amountOut", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "getAmountsOut",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "amountIn", type: "uint256" },
+      { name: "path", type: "address[]" },
+    ],
+    outputs: [{ name: "amounts", type: "uint256[]" }],
   },
 ] as const;
 
@@ -87,29 +99,26 @@ async function ethEstimateGas(rpcUrl: string, tx: Record<string, unknown>): Prom
 async function getExchangeQuote(
   rpcUrl: string,
   routerAddress: string,
-  taker: `0x${string}`,
   tokenIn: `0x${string}`,
   tokenOut: `0x${string}`,
-  amountIn: bigint,
-  value: `0x${string}`
+  amountIn: bigint
 ): Promise<bigint> {
   const data = encodeFunctionData({
     abi: eniRouterAbi,
-    functionName: "exchange",
-    args: [tokenIn, tokenOut, amountIn],
+    functionName: "getAmountsOut",
+    args: [amountIn, [tokenIn, tokenOut]],
   });
   const result = await ethCall(rpcUrl, {
-    from: taker,
     to: routerAddress,
     data,
-    value,
   });
   try {
-    return decodeFunctionResult({
+    const amounts = decodeFunctionResult({
       abi: eniRouterAbi,
-      functionName: "exchange",
+      functionName: "getAmountsOut",
       data: result as `0x${string}`,
-    }) as bigint;
+    }) as bigint[];
+    return amounts[amounts.length - 1] ?? BigInt(0);
   } catch {
     return BigInt(0);
   }
@@ -138,7 +147,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // ENI chains use router.exchange(tokenIn, tokenOut, amount)
+    // ENI chains use router.swapExactTokensForTokensSupportingFeeOnTransferTokens
     if (chainId in ENI_SWAP_ROUTERS) {
       const routerAddress = ENI_SWAP_ROUTERS[chainId];
       if (!routerAddress) {
@@ -174,22 +183,14 @@ export async function GET(request: NextRequest) {
         : buyToken) as `0x${string}`;
       const value = sellIsNative ? toHex(amountIn) : "0x0";
 
-      const data = encodeFunctionData({
-        abi: eniRouterAbi,
-        functionName: "exchange",
-        args: [tokenIn, tokenOut, amountIn],
-      });
-
       let buyAmount = BigInt(0);
       try {
         buyAmount = await getExchangeQuote(
           rpcUrl,
           routerAddress,
-          taker as `0x${string}`,
           tokenIn,
           tokenOut,
-          amountIn,
-          value as `0x${string}`
+          amountIn
         );
       } catch (err: unknown) {
         console.error("[Swap Proxy Router preflight] Reverted:", err instanceof Error ? err.message : String(err));
@@ -198,6 +199,16 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      const slippageFactor = BigInt(10000 - Number(slippageBps));
+      const amountOutMin = (buyAmount * slippageFactor) / BigInt(10000);
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20); // 20 minutes
+
+      const data = encodeFunctionData({
+        abi: eniRouterAbi,
+        functionName: "swapExactTokensForTokensSupportingFeeOnTransferTokens",
+        args: [amountIn, amountOutMin, [tokenIn, tokenOut], taker as `0x${string}`, deadline],
+      });
 
       let gasPrice = "0x0";
       try {

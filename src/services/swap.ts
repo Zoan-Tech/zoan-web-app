@@ -81,7 +81,7 @@ export async function getSwapQuote(params: {
     sellAmount: data.sellAmount,
     buyAmount: data.buyAmount,
     buyAmountFormatted,
-    price: data.price ?? (
+    price: data.price || (
       data.buyAmount && data.sellAmount
         ? (Number(data.buyAmount) / 10 ** buyTokenDecimals / (Number(data.sellAmount) / 10 ** sellTokenDecimals)).toString()
         : ""

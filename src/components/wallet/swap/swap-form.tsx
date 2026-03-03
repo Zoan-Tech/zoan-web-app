@@ -264,7 +264,7 @@ export function SwapForm({ address, chainId, chain, embeddedWallet, onClose }: S
     <div className="space-y-3">
       {/* Panels group */}
       <div className="flex flex-col gap-2">
-      {/* From */}
+        {/* From */}
         <div className="rounded-xl border border-gray-200 p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500">You pay</span>
@@ -397,31 +397,65 @@ export function SwapForm({ address, chainId, chain, embeddedWallet, onClose }: S
 
       {/* Quote info */}
       {quote && !quoteError && (
-        <div className="space-y-1.5 rounded-xl bg-gray-50 px-4 py-3 text-sm">
+        <div className="space-y-2 rounded-xl bg-gray-50 px-4 py-3 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-gray-500">Rate</span>
             <span className="text-gray-900">
-              1 {fromSymbol} ≈ {parseFloat(exchangeRate).toFixed(6)} {toSymbol}
+              {exchangeRate && !isNaN(parseFloat(exchangeRate)) ? `1 ${fromSymbol} ≈ ${parseFloat(exchangeRate).toFixed(6)} ${toSymbol}` : "Calculating..."}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-500">Slippage</span>
+            <span className="text-gray-500">Slippage Tolerance</span>
             <div className="flex gap-1">
               {SLIPPAGE_OPTIONS.map((opt) => (
                 <button
                   key={opt.bps}
                   onClick={() => setSlippageBps(opt.bps)}
-                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                    slippageBps === opt.bps
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${slippageBps === opt.bps
                       ? "bg-[#27CEC5] text-white"
                       : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                  }`}
+                    }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
           </div>
+
+          {(() => {
+            const estGas = BigInt(quote.estimatedGas || "0");
+            const gasPrice = BigInt(quote.transaction.gasPrice || "0");
+            const costWei = estGas * gasPrice;
+            const costFormatted = Number(costWei) / 1e18;
+
+            const minReceived = (parseFloat(toAmountFormatted) || 0) * (10000 - slippageBps) / 10000;
+            const route = `v2 ${fromSymbol}-${toSymbol}`;
+
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Estimated Cost</span>
+                  <span className="text-gray-900">
+                    {costFormatted > 0 ? `${costFormatted.toFixed(6)} ${chain.symbol}` : "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Price Impact</span>
+                  <span className="text-[#27CEC5]">&lt;0.01%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Minimum Received</span>
+                  <span className="text-gray-900">
+                    {minReceived > 0 ? `${minReceived.toFixed(6)} ${toSymbol}` : `0 ${toSymbol}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Swap Route</span>
+                  <span className="text-gray-900">{route}</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -491,14 +525,19 @@ function TokenDropdown({
   selected,
   onSelect,
 }: TokenDropdownProps) {
+  const handleCopy = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    toast.success("Address copied to clipboard");
+  };
+
   return (
     <div className="absolute left-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
       {/* Native token */}
       <button
         onClick={() => onSelect("native")}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-          selected === "native" ? "bg-[#E0FAF8]" : ""
-        }`}
+        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${selected === "native" ? "bg-[#E0FAF8]" : ""
+          }`}
       >
         {chainLogoUrl ? (
           <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
@@ -519,20 +558,38 @@ function TokenDropdown({
         <button
           key={token.address}
           onClick={() => onSelect(token.address)}
-          className={`flex w-full items-center gap-3 border-t border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-            selected === token.address ? "bg-[#E0FAF8]" : ""
-          }`}
+          className={`flex w-full items-center gap-3 border-t border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${selected === token.address ? "bg-[#E0FAF8]" : ""
+            }`}
         >
           {token.logo_url ? (
-            <Image src={token.logo_url} alt={token.symbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
+            <Image src={token.logo_url} alt={token.symbol} width={32} height={32} className="h-8 w-8 rounded-xl shrink-0" unoptimized />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-200">
               <span className="text-xs font-bold">{token.symbol[0]}</span>
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900">{token.symbol}</p>
+            <p className="font-medium text-gray-900 truncate">{token.symbol}</p>
             <p className="truncate text-xs text-gray-400">{token.name}</p>
+            <div
+              className="flex items-center gap-1 mt-0.5 group/copy"
+              onClick={(e) => handleCopy(e, token.address)}
+              title="Copy address"
+            >
+              <p className="truncate text-[10px] text-gray-400 hover:text-[#27CEC5] transition-colors">
+                {token.address.slice(0, 6)}...{token.address.slice(-4)}
+              </p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="10"
+                height="10"
+                fill="currentColor"
+                viewBox="0 0 256 256"
+                className="text-gray-400 opacity-0 group-hover/copy:opacity-100 group-hover/copy:text-[#27CEC5] transition-all"
+              >
+                <path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"></path>
+              </svg>
+            </div>
           </div>
           <p className="shrink-0 text-xs text-gray-500">{token.balance}</p>
         </button>

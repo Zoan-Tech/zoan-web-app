@@ -292,6 +292,23 @@ export async function POST(request: NextRequest) {
 
         // --- Chain token list (no balances) ---
         if (action === "tokenlist") {
+            // For ENI chains, ONLY return the hardcoded allowed swap tokens
+            if (chainId === 173 || chainId === 174) {
+                const { ENI_TOKENS } = await import("@/lib/config");
+                const hardcodedTokens = ENI_TOKENS
+                    .filter((t) => t.chainId === chainId)
+                    .map((t) => ({
+                        address: t.address,
+                        symbol: t.symbol,
+                        name: t.name,
+                        decimals: t.decimals,
+                        balance: "0",
+                        logo_url: t.logoURI || undefined,
+                    }));
+
+                return NextResponse.json({ success: true, data: hardcodedTokens });
+            }
+
             // Prefer explorer-native token registry, then fall back to 1inch list.
             let items = await listTokensBlockscoutV2(explorerUrl);
             if (items.length === 0) {
