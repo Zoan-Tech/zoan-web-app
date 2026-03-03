@@ -72,6 +72,15 @@ interface BlockscoutTokenItem {
     value: string; // raw balance in smallest unit
 }
 
+interface BlockscoutTokenListItem {
+    address: string;
+    name: string;
+    symbol: string;
+    decimals: string;
+    icon_url: string | null;
+    type: string;
+}
+
 interface BlockscoutTxItem {
     hash: string;
     from: { hash: string };
@@ -82,6 +91,18 @@ interface BlockscoutTxItem {
     status: string;      // "ok" | "error"
     method: string | null;
     fee: { value: string };
+}
+
+interface OneInchTokenItem {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    logoURI?: string;
+}
+
+interface OneInchTokenMap {
+    [address: string]: OneInchTokenItem;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +175,48 @@ async function scanTokensBlockscoutV2(explorerUrl: string, address: string) {
                 logo_url: item.token.icon_url || undefined,
             };
         })
-        .filter((t) => t.balance !== "0" && parseFloat(t.balance) > 0);
+        ;
+}
+
+// ---------------------------------------------------------------------------
+// Chain-wide token list via Blockscout V2
+// ---------------------------------------------------------------------------
+async function listTokensBlockscoutV2(explorerUrl: string) {
+    const apiUrl = `${explorerUrl}/api/v2/tokens?type=ERC-20`;
+    const data = await fetchBlockscoutV2<{ items: BlockscoutTokenListItem[] }>(apiUrl);
+
+    if (!data?.items) return [];
+
+    return data.items.map((item) => {
+        const decimals = parseInt(item.decimals, 10) || 18;
+        return {
+            address: item.address,
+            symbol: item.symbol || "???",
+            name: item.name || "Unknown Token",
+            decimals,
+            balance: "0",
+            logo_url: item.icon_url || undefined,
+        };
+    });
+}
+
+// ---------------------------------------------------------------------------
+// 1inch token list fallback (for non-Blockscout chains like Ethereum/BSC/etc.)
+// ---------------------------------------------------------------------------
+async function listTokensOneInch(chainId: number) {
+    const apiUrl = `https://tokens.1inch.io/v1.2/${chainId}`;
+    const data = await fetchBlockscoutV2<OneInchTokenMap>(apiUrl);
+
+    if (!data || typeof data !== "object") return [];
+
+    return Object.values(data).map((item) => ({
+        address: item.address,
+        symbol: item.symbol || "???",
+        name: item.name || "Unknown Token",
+        decimals: Number.isFinite(item.decimals) ? item.decimals : 18,
+        balance: "0",
+        logo_url: item.logoURI || undefined,
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -194,11 +256,19 @@ async function fetchTxHistoryBlockscoutV2(explorerUrl: string, address: string) 
  */
 export async function POST(request: NextRequest) {
     try {
-        const { chainId, address, action } = await request.json();
+        const { chainId, address, action, includeZeroBalances } = await request.json();
 
-        if (!chainId || !address) {
+        if (!chainId) {
             return NextResponse.json(
-                { error: "chainId and address are required" },
+                { error: "chainId is required" },
+                { status: 400 }
+            );
+        }
+
+        // Only some actions require a wallet address
+        if (action !== "tokenlist" && !address) {
+            return NextResponse.json(
+                { error: "address is required" },
                 { status: 400 }
             );
         }
@@ -220,9 +290,26 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: true, data: transfers });
         }
 
+        // --- Chain token list (no balances) ---
+        if (action === "tokenlist") {
+            // Prefer explorer-native token registry, then fall back to 1inch list.
+            let items = await listTokensBlockscoutV2(explorerUrl);
+            if (items.length === 0) {
+                items = await listTokensOneInch(chainId);
+            }
+
+            // Keep it bounded to avoid huge payloads
+            return NextResponse.json({ success: true, data: items.slice(0, 200) });
+        }
+
         // --- Token scan (default) ---
         const tokens = await scanTokensBlockscoutV2(explorerUrl, address);
-        return NextResponse.json({ success: true, data: tokens });
+        const includeZeros = includeZeroBalances === true;
+
+        const filtered = includeZeros
+            ? tokens
+            : tokens.filter((t) => t.balance !== "0" && parseFloat(t.balance) > 0);
+        return NextResponse.json({ success: true, data: filtered });
     } catch (err) {
         console.error("[TokenScan]", err);
         return NextResponse.json(

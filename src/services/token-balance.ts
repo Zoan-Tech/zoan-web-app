@@ -20,6 +20,8 @@ export interface TokenBalance {
   logo_url?: string;
 }
 
+export type TokenInfo = Omit<TokenBalance, "balance"> & { balance: string };
+
 interface JsonRpcResponse<T> {
   jsonrpc: string;
   id: number;
@@ -121,13 +123,21 @@ export async function getNativeBalance(
  */
 export async function getTokenBalances(
   chainId: number,
-  address: string
+  address: string,
+  options?: {
+    /** When true, include tokens with 0 balance (useful for Swap pickers). */
+    includeZeroBalances?: boolean;
+  }
 ): Promise<TokenBalance[]> {
   try {
     const response = await fetch("/api/token-scan", {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ chainId, address }),
+      body: JSON.stringify({
+        chainId,
+        address,
+        includeZeroBalances: options?.includeZeroBalances === true,
+      }),
     });
 
     if (!response.ok) {
@@ -142,6 +152,34 @@ export async function getTokenBalances(
     return [];
   } catch (err) {
     console.warn("[TokenBalance] Token scan error:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetch a chain-wide ERC20 token list (no wallet needed).
+ * Uses Blockscout token registry via /api/token-scan.
+ */
+export async function getChainTokenList(chainId: number): Promise<TokenInfo[]> {
+  try {
+    const response = await fetch("/api/token-scan", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ chainId, action: "tokenlist" }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[TokenBalance] Chain token list failed for chain ${chainId}: ${response.status}`);
+      return [];
+    }
+
+    const json = await response.json();
+    if (json.success && Array.isArray(json.data)) {
+      return json.data;
+    }
+    return [];
+  } catch (err) {
+    console.warn("[TokenBalance] Chain token list error:", err);
     return [];
   }
 }

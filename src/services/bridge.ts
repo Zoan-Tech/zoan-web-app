@@ -6,6 +6,7 @@ export const ORBITER_NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 /** EVM chain IDs that Orbiter Finance supports */
 export const ORBITER_SUPPORTED_CHAIN_IDS = [
   1,     // Ethereum
+  173,   // ENI Mainnet
   42161, // Arbitrum One
   10,    // Optimism
   8453,  // Base
@@ -21,8 +22,28 @@ export const ORBITER_SUPPORTED_CHAIN_IDS = [
   1101,  // Polygon zkEVM
 ];
 
+/**
+ * Chain-specific destination constraints.
+ * If a source chain is present here, only listed destinations are allowed.
+ */
+export const BRIDGE_TARGETS_BY_SOURCE_CHAIN: Record<number, number[]> = {
+  // ENI Mainnet -> Arbitrum, Base, BNB, Ethereum
+  173: [42161, 8453, 56, 1],
+};
+
 export function isBridgeSupported(chainId: number): boolean {
   return ORBITER_SUPPORTED_CHAIN_IDS.includes(chainId);
+}
+
+export function isBridgeRouteSupported(sourceChainId: number, destChainId: number): boolean {
+  if (!isBridgeSupported(sourceChainId) || !isBridgeSupported(destChainId)) {
+    return false;
+  }
+
+  const targets = BRIDGE_TARGETS_BY_SOURCE_CHAIN[sourceChainId];
+  if (!targets) return sourceChainId !== destChainId;
+
+  return sourceChainId !== destChainId && targets.includes(destChainId);
 }
 
 export interface OrbiterChain {
@@ -35,6 +56,17 @@ export interface OrbiterChain {
     decimals: number;
     address: string;
   };
+}
+
+export interface OrbiterToken {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  chainId: string;
+  coinKey: string;
+  isNative: boolean;
+  isBridgeable: boolean;
 }
 
 export interface BridgeQuoteStep {
@@ -77,6 +109,16 @@ export interface GetBridgeQuoteParams {
   targetRecipient: string;
 }
 
+/**
+ * Preferred ENI bridge token defaults when native token is not bridgeable.
+ */
+export const ENI_DEFAULT_BRIDGE_TOKEN_BY_CHAIN: Record<number, string> = {
+  // ENI Mainnet Orbiter USDT
+  173: "0x47c98f74dBC1acc4cf2e04C4a729E22379EF4373",
+  // ENI Testnet Orbiter USDT (reserved for future support)
+  174: "0x98183dbB8E506F3276D2ae2D0d086c3B90F0E742",
+};
+
 /** Convert a human-readable decimal string to its integer representation (wei). */
 function parseUnits(amount: string, decimals: number): string {
   const [whole, frac = ""] = amount.split(".");
@@ -96,6 +138,20 @@ export async function getOrbiterChains(): Promise<OrbiterChain[]> {
   // Orbiter returns { status: "success", result: [...] }
   if (data.result && Array.isArray(data.result)) {
     return data.result.filter((c: OrbiterChain) => c.vm === "EVM");
+  }
+  return [];
+}
+
+/**
+ * Fetch bridgeable token metadata from Orbiter Finance via our proxy.
+ */
+export async function getOrbiterTokens(): Promise<OrbiterToken[]> {
+  const response = await fetch("/api/bridge?action=tokens");
+  if (!response.ok) throw new Error("Failed to fetch Orbiter tokens");
+
+  const data = await response.json();
+  if (data.result && Array.isArray(data.result)) {
+    return data.result;
   }
   return [];
 }

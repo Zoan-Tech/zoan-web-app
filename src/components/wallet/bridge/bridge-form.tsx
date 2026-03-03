@@ -5,7 +5,15 @@ import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import { useBridgeQuote } from "@/hooks/use-bridge-quote";
-import { isBridgeSupported, getTotalFeeUsd, getOrbiterChains, ORBITER_NATIVE_TOKEN } from "@/services/bridge";
+import {
+  isBridgeSupported,
+  isBridgeRouteSupported,
+  getTotalFeeUsd,
+  getOrbiterChains,
+  getOrbiterTokens,
+  ORBITER_NATIVE_TOKEN,
+  ENI_DEFAULT_BRIDGE_TOKEN_BY_CHAIN,
+} from "@/services/bridge";
 import { formatUsd } from "@/services/token-price";
 import { checkAllowance, encodeApproval } from "@/services/swap";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -45,12 +53,20 @@ export function BridgeForm({
   embeddedWallet,
   onClose,
 }: BridgeFormProps) {
-  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, sourceChain.id);
+  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, sourceChain.id, {
+    includeZeroBalances: true,
+    includeChainTokenList: isBridgeSupported(sourceChain.id),
+  });
 
   // Fetch Orbiter chain metadata to get correct native token addresses per chain
   const { data: orbiterChains } = useQuery({
     queryKey: ["orbiterChains"],
     queryFn: getOrbiterChains,
+    staleTime: Infinity,
+  });
+  const { data: orbiterTokens } = useQuery({
+    queryKey: ["orbiterTokens"],
+    queryFn: getOrbiterTokens,
     staleTime: Infinity,
   });
   const getOrbiterNative = (chainId: number) =>
@@ -90,7 +106,8 @@ export function BridgeForm({
 
   // Reset token when source chain changes
   useEffect(() => {
-    setSelectedToken("native");
+    const eniDefault = ENI_DEFAULT_BRIDGE_TOKEN_BY_CHAIN[sourceChain.id];
+    setSelectedToken(eniDefault ? eniDefault : "native");
     setAmount("");
   }, [sourceChain.id]);
 
@@ -106,12 +123,50 @@ export function BridgeForm({
   const tokenUsdPrice = isNative ? nativeUsdPrice : 0;
   const amountUsd = tokenUsdPrice * (parseFloat(amount) || 0);
 
-  // Token address for quote — use Orbiter's chain-specific native address
   const sourceTokenAddress = isNative ? getOrbiterNative(sourceChain.id) : selectedToken;
-  // Assume bridging same token on destination (e.g. ETH → ETH, USDC → USDC)
-  const destTokenAddress = getOrbiterNative(destChain.id);
+
+  const sourceOrbiterToken = orbiterTokens?.find((t) =>
+    t.chainId === String(sourceChain.id) &&
+    t.address.toLowerCase() === sourceTokenAddress.toLowerCase() &&
+    t.isBridgeable
+  );
+
+  const destOrbiterToken = sourceOrbiterToken
+    ? orbiterTokens?.find((t) =>
+        t.chainId === String(destChain.id) &&
+        t.coinKey === sourceOrbiterToken.coinKey &&
+        t.isBridgeable
+      )
+    : undefined;
+
+  const destTokenAddress = destOrbiterToken?.address ?? "";
 
   const tokenDecimals = isNative ? 18 : (selectedErc20?.decimals ?? 18);
+  const routeSupported =
+    isBridgeRouteSupported(sourceChain.id, destChain.id) &&
+    !!sourceOrbiterToken &&
+    !!destTokenAddress;
+
+  const bridgeableCoinKeysOnDest = new Set(
+    (orbiterTokens ?? [])
+      .filter((t) => t.chainId === String(destChain.id) && t.isBridgeable)
+      .map((t) => t.coinKey)
+  );
+
+  const bridgeableSourceTokenAddresses = new Set(
+    (orbiterTokens ?? [])
+      .filter((t) => t.chainId === String(sourceChain.id) && t.isBridgeable)
+      .filter((t) => bridgeableCoinKeysOnDest.has(t.coinKey))
+      .map((t) => t.address.toLowerCase())
+  );
+
+  const showNativeOption = bridgeableSourceTokenAddresses.has(
+    getOrbiterNative(sourceChain.id).toLowerCase()
+  );
+
+  const bridgeableTokens = tokens.filter((t) =>
+    bridgeableSourceTokenAddresses.has(t.address.toLowerCase())
+  );
 
   const { quote, isLoading: isQuoteLoading, error: quoteError } = useBridgeQuote({
     sourceChainId: sourceChain.id,
@@ -121,7 +176,7 @@ export function BridgeForm({
     amount,
     decimals: tokenDecimals,
     userAddress: address,
-    enabled: isBridgeSupported(sourceChain.id) && isBridgeSupported(destChain.id),
+    enabled: routeSupported,
   });
 
   const receiveAmount = quote?.details.destAmountFormatted ?? "";
@@ -218,16 +273,14 @@ export function BridgeForm({
   };
 
   const sourceChainOptions = allChains.filter(
-    (c) => c.id !== destChain.id && isBridgeSupported(c.id) && !c.is_testnet
+    (c) => c.id !== destChain.id && isBridgeRouteSupported(c.id, destChain.id) && !c.is_testnet
   );
   const destChainOptions = allChains.filter(
-    (c) => c.id !== sourceChain.id && isBridgeSupported(c.id) && !c.is_testnet
+    (c) => c.id !== sourceChain.id && isBridgeRouteSupported(sourceChain.id, c.id) && !c.is_testnet
   );
 
   const isFormValid =
-    isBridgeSupported(sourceChain.id) &&
-    isBridgeSupported(destChain.id) &&
-    sourceChain.id !== destChain.id &&
+    routeSupported &&
     parseFloat(amount) > 0 &&
     parseFloat(amount) <= parseFloat(tokenBalance) &&
     !!quote &&
@@ -348,7 +401,8 @@ export function BridgeForm({
                   chainName={sourceChain.name}
                   chainLogoUrl={sourceChain.logo_url}
                   nativeBalance={nativeBalance}
-                  tokens={tokens}
+                  tokens={bridgeableTokens}
+                  showNative={showNativeOption}
                   selected={selectedToken}
                   onSelect={(token) => {
                     setSelectedToken(token);
@@ -525,6 +579,12 @@ export function BridgeForm({
       )}
 
       {/* Errors */}
+      {!routeSupported && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+          Bridge route/token is not supported for this chain pair.
+        </div>
+      )}
+
       {quoteError && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
           {quoteError}
@@ -579,6 +639,7 @@ interface TokenDropdownProps {
   chainName: string;
   chainLogoUrl?: string;
   nativeBalance: string;
+  showNative: boolean;
   tokens: { address: string; symbol: string; name: string; balance: string; logo_url?: string }[];
   selected: SelectedToken;
   onSelect: (token: SelectedToken) => void;
@@ -589,31 +650,34 @@ function TokenDropdown({
   chainName,
   chainLogoUrl,
   nativeBalance,
+  showNative,
   tokens,
   selected,
   onSelect,
 }: TokenDropdownProps) {
   return (
     <div className="absolute left-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
-      <button
-        onClick={() => onSelect("native")}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-          selected === "native" ? "bg-[#E0FAF8]" : ""
-        }`}
-      >
-        {chainLogoUrl ? (
-          <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
-            <span className="text-xs font-bold">{chainSymbol[0]}</span>
+      {showNative && (
+        <button
+          onClick={() => onSelect("native")}
+          className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+            selected === "native" ? "bg-[#E0FAF8]" : ""
+          }`}
+        >
+          {chainLogoUrl ? (
+            <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
+              <span className="text-xs font-bold">{chainSymbol[0]}</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900">{chainSymbol}</p>
+            <p className="truncate text-xs text-gray-400">{chainName}</p>
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-900">{chainSymbol}</p>
-          <p className="truncate text-xs text-gray-400">{chainName}</p>
-        </div>
-        <p className="shrink-0 text-xs text-gray-500">{nativeBalance}</p>
-      </button>
+          <p className="shrink-0 text-xs text-gray-500">{nativeBalance}</p>
+        </button>
+      )}
 
       {tokens.map((token) => (
         <button

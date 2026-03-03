@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import { useSwapQuote } from "@/hooks/use-swap-quote";
-import { checkAllowance, encodeApproval, isSwapSupported } from "@/services/swap";
+import { checkAllowance, encodeApproval, isSwapSupported, simulateSwapTransaction } from "@/services/swap";
 import { formatUsd } from "@/services/token-price";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -36,7 +36,11 @@ const SLIPPAGE_OPTIONS = [
 ];
 
 export function SwapForm({ address, chainId, chain, embeddedWallet, onClose }: SwapFormProps) {
-  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, chainId);
+  const shouldFetchChainTokenList = isSwapSupported(chainId);
+  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, chainId, {
+    includeZeroBalances: true,
+    includeChainTokenList: shouldFetchChainTokenList,
+  });
 
   const [fromToken, setFromToken] = useState<SelectedToken>("native");
   const [toToken, setToToken] = useState<SelectedToken>(() => {
@@ -190,6 +194,20 @@ export function SwapForm({ address, chainId, chain, embeddedWallet, onClose }: S
 
       // Execute swap
       const { to, data, value, gas, gasPrice } = quote.transaction;
+
+      // Critical preflight: simulate the exact tx before write to avoid failed gas spend.
+      try {
+        await simulateSwapTransaction({
+          chainId,
+          from: address,
+          to,
+          data,
+          value,
+        });
+      } catch {
+        throw new Error("Insufficient liquidity for this swap pair or path not found.");
+      }
+
       const txHash = await provider.request({
         method: "eth_sendTransaction",
         params: [{ from: address, to, data, value, gas, gasPrice }],
