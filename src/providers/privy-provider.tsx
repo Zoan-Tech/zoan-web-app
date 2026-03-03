@@ -70,7 +70,17 @@ const eniTestnet = defineChain({
   testnet: true,
 });
 
+// Well-known chain IDs that Privy already supports natively.
+// Re-defining these with defineChain causes "Unsupported chainId" errors.
+const PRIVY_BUILTIN_CHAIN_IDS = new Set([
+  1, 5, 10, 56, 100, 137, 250, 324, 1101, 5000, 8453, 42161, 42220, 43114,
+  59144, 80001, 84532, 421614, 11155111, 11155420,
+]);
+
 function mapBackendChainToViem(chain: BackendChain) {
+  // Skip chains that Privy already has built-in support for
+  if (PRIVY_BUILTIN_CHAIN_IDS.has(chain.chain_id)) return null;
+
   const activeProviders = (chain.rpc_providers ?? [])
     .filter((provider) => provider.is_active)
     .sort((left, right) => left.priority - right.priority);
@@ -93,11 +103,11 @@ function mapBackendChainToViem(chain: BackendChain) {
     },
     blockExplorers: chain.explorer_url
       ? {
-          default: {
-            name: `${chain.name} Explorer`,
-            url: chain.explorer_url,
-          },
-        }
+        default: {
+          name: `${chain.name} Explorer`,
+          url: chain.explorer_url,
+        },
+      }
       : undefined,
     testnet: chain.is_testnet,
   });
