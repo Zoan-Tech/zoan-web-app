@@ -1,6 +1,7 @@
 import { encodeFunctionData } from "viem";
 import { formatBalance } from "./token-balance";
 import { parseTokenAmount } from "@/lib/wallet/erc20";
+import { ENI_SWAP_ROUTERS } from "@/lib/config";
 
 export const ZERO_X_SUPPORTED_CHAINS = [1, 137, 8453, 10, 42161, 56];
 
@@ -27,7 +28,10 @@ export interface SwapQuote {
 }
 
 export function isSwapSupported(chainId: number): boolean {
-  return ZERO_X_SUPPORTED_CHAINS.includes(chainId);
+  return (
+    ZERO_X_SUPPORTED_CHAINS.includes(chainId) ||
+    Object.prototype.hasOwnProperty.call(ENI_SWAP_ROUTERS, chainId)
+  );
 }
 
 /**
@@ -77,7 +81,7 @@ export async function getSwapQuote(params: {
     sellAmount: data.sellAmount,
     buyAmount: data.buyAmount,
     buyAmountFormatted,
-    price: data.price ?? (
+    price: data.price || (
       data.buyAmount && data.sellAmount
         ? (Number(data.buyAmount) / 10 ** buyTokenDecimals / (Number(data.sellAmount) / 10 ** sellTokenDecimals)).toString()
         : ""
@@ -162,4 +166,47 @@ export function encodeApproval(spender: string): string {
  */
 export function toSellAmountRaw(amount: string, decimals: number): string {
   return parseTokenAmount(amount, decimals).toString();
+}
+
+/**
+ * Preflight a swap tx using eth_call before sending a state-changing tx.
+ * Throws when the route/pool is unavailable or tx would revert.
+ */
+export async function simulateSwapTransaction(params: {
+  chainId: number;
+  from: string;
+  to: string;
+  data: string;
+  value?: string;
+}): Promise<void> {
+  const response = await fetch("/api/rpc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chainId: params.chainId,
+      method: "eth_call",
+      params: [
+        {
+          from: params.from,
+          to: params.to,
+          data: params.data,
+          value: params.value ?? "0x0",
+        },
+        "latest",
+      ],
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result?.error ?? "Swap simulation failed");
+  }
+
+  if (result?.error) {
+    const message =
+      typeof result.error === "string"
+        ? result.error
+        : result.error.message ?? "Swap simulation reverted";
+    throw new Error(message);
+  }
 }

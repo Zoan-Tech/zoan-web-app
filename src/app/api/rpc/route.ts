@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Chain } from "@/types/wallet";
+import { FALLBACK_RPC_URLS } from "@/lib/config";
 
 const RPC_TIMEOUT_MS = 10_000;
 const CHAIN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -78,11 +79,14 @@ function fetchWithTimeout(url: string, body: string): Promise<Response> {
 
 /**
  * Server-side RPC proxy.
- * Uses only the backend Chain API for RPC URLs — no hardcoded Alchemy URLs.
+ * Uses backend Chain API first, then a local fallback map.
  */
 export async function POST(request: NextRequest) {
   try {
-    const { chainId, method, params } = await request.json();
+    const requestBody = await request.json();
+    const chainId = Number(requestBody?.chainId);
+    const method = requestBody?.method as string | undefined;
+    const params = requestBody?.params as unknown[] | undefined;
 
     if (!chainId || !method) {
       return NextResponse.json(
@@ -98,10 +102,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // RPC URL comes entirely from the backend chain data
+    // RPC URL comes primarily from the backend chain data
     const authHeader = request.headers.get("authorization");
     const chains = await getChains(authHeader);
-    const rpcUrl = chains.find((c) => c.id === chainId)?.rpc_url;
+    const rpcUrl = chains.find((c) => c.id === chainId)?.rpc_url || FALLBACK_RPC_URLS[chainId];
 
     if (!rpcUrl) {
       return NextResponse.json(

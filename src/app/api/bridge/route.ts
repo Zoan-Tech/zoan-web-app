@@ -13,7 +13,7 @@ const TIMEOUT_MS = 15_000;
 export async function GET(request: NextRequest) {
   const action = request.nextUrl.searchParams.get("action");
 
-  if (action !== "chains") {
+  if (action !== "chains" && action !== "tokens") {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${ORBITER_API}/chains`, {
+    const endpoint = action === "tokens" ? "tokens" : "chains";
+    const response = await fetch(`${ORBITER_API}/${endpoint}`, {
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
     });

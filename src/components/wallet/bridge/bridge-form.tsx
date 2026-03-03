@@ -5,7 +5,15 @@ import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useTokenBalances } from "@/hooks/use-token-balances";
 import { useBridgeQuote } from "@/hooks/use-bridge-quote";
-import { isBridgeSupported, getTotalFeeUsd, getOrbiterChains, ORBITER_NATIVE_TOKEN } from "@/services/bridge";
+import {
+  isBridgeSupported,
+  isBridgeRouteSupported,
+  getTotalFeeUsd,
+  getOrbiterChains,
+  getOrbiterTokens,
+  ORBITER_NATIVE_TOKEN,
+  ENI_DEFAULT_BRIDGE_TOKEN_BY_CHAIN,
+} from "@/services/bridge";
 import { formatUsd } from "@/services/token-price";
 import { checkAllowance, encodeApproval } from "@/services/swap";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -45,12 +53,20 @@ export function BridgeForm({
   embeddedWallet,
   onClose,
 }: BridgeFormProps) {
-  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, sourceChain.id);
+  const { nativeBalance, nativeUsdPrice, tokens } = useTokenBalances(address, sourceChain.id, {
+    includeZeroBalances: true,
+    includeChainTokenList: isBridgeSupported(sourceChain.id),
+  });
 
   // Fetch Orbiter chain metadata to get correct native token addresses per chain
   const { data: orbiterChains } = useQuery({
     queryKey: ["orbiterChains"],
     queryFn: getOrbiterChains,
+    staleTime: Infinity,
+  });
+  const { data: orbiterTokens } = useQuery({
+    queryKey: ["orbiterTokens"],
+    queryFn: getOrbiterTokens,
     staleTime: Infinity,
   });
   const getOrbiterNative = (chainId: number) =>
@@ -90,7 +106,8 @@ export function BridgeForm({
 
   // Reset token when source chain changes
   useEffect(() => {
-    setSelectedToken("native");
+    const eniDefault = ENI_DEFAULT_BRIDGE_TOKEN_BY_CHAIN[sourceChain.id];
+    setSelectedToken(eniDefault ? eniDefault : "native");
     setAmount("");
   }, [sourceChain.id]);
 
@@ -106,12 +123,50 @@ export function BridgeForm({
   const tokenUsdPrice = isNative ? nativeUsdPrice : 0;
   const amountUsd = tokenUsdPrice * (parseFloat(amount) || 0);
 
-  // Token address for quote — use Orbiter's chain-specific native address
   const sourceTokenAddress = isNative ? getOrbiterNative(sourceChain.id) : selectedToken;
-  // Assume bridging same token on destination (e.g. ETH → ETH, USDC → USDC)
-  const destTokenAddress = getOrbiterNative(destChain.id);
+
+  const sourceOrbiterToken = orbiterTokens?.find((t) =>
+    t.chainId === String(sourceChain.id) &&
+    t.address.toLowerCase() === sourceTokenAddress.toLowerCase() &&
+    t.isBridgeable
+  );
+
+  const destOrbiterToken = sourceOrbiterToken
+    ? orbiterTokens?.find((t) =>
+      t.chainId === String(destChain.id) &&
+      t.coinKey === sourceOrbiterToken.coinKey &&
+      t.isBridgeable
+    )
+    : undefined;
+
+  const destTokenAddress = destOrbiterToken?.address ?? "";
 
   const tokenDecimals = isNative ? 18 : (selectedErc20?.decimals ?? 18);
+  const routeSupported =
+    isBridgeRouteSupported(sourceChain.id, destChain.id) &&
+    !!sourceOrbiterToken &&
+    !!destTokenAddress;
+
+  const bridgeableCoinKeysOnDest = new Set(
+    (orbiterTokens ?? [])
+      .filter((t) => t.chainId === String(destChain.id) && t.isBridgeable)
+      .map((t) => t.coinKey)
+  );
+
+  const bridgeableSourceTokenAddresses = new Set(
+    (orbiterTokens ?? [])
+      .filter((t) => t.chainId === String(sourceChain.id) && t.isBridgeable)
+      .filter((t) => bridgeableCoinKeysOnDest.has(t.coinKey))
+      .map((t) => t.address.toLowerCase())
+  );
+
+  const showNativeOption = bridgeableSourceTokenAddresses.has(
+    getOrbiterNative(sourceChain.id).toLowerCase()
+  );
+
+  const bridgeableTokens = tokens.filter((t) =>
+    bridgeableSourceTokenAddresses.has(t.address.toLowerCase())
+  );
 
   const { quote, isLoading: isQuoteLoading, error: quoteError } = useBridgeQuote({
     sourceChainId: sourceChain.id,
@@ -121,7 +176,7 @@ export function BridgeForm({
     amount,
     decimals: tokenDecimals,
     userAddress: address,
-    enabled: isBridgeSupported(sourceChain.id) && isBridgeSupported(destChain.id),
+    enabled: routeSupported,
   });
 
   const receiveAmount = quote?.details.destAmountFormatted ?? "";
@@ -218,16 +273,14 @@ export function BridgeForm({
   };
 
   const sourceChainOptions = allChains.filter(
-    (c) => c.id !== destChain.id && isBridgeSupported(c.id) && !c.is_testnet
+    (c) => c.id !== destChain.id && isBridgeRouteSupported(c.id, destChain.id) && !c.is_testnet
   );
   const destChainOptions = allChains.filter(
-    (c) => c.id !== sourceChain.id && isBridgeSupported(c.id) && !c.is_testnet
+    (c) => c.id !== sourceChain.id && isBridgeRouteSupported(sourceChain.id, c.id) && !c.is_testnet
   );
 
   const isFormValid =
-    isBridgeSupported(sourceChain.id) &&
-    isBridgeSupported(destChain.id) &&
-    sourceChain.id !== destChain.id &&
+    routeSupported &&
     parseFloat(amount) > 0 &&
     parseFloat(amount) <= parseFloat(tokenBalance) &&
     !!quote &&
@@ -348,7 +401,8 @@ export function BridgeForm({
                   chainName={sourceChain.name}
                   chainLogoUrl={sourceChain.logo_url}
                   nativeBalance={nativeBalance}
-                  tokens={tokens}
+                  tokens={bridgeableTokens}
+                  showNative={showNativeOption}
                   selected={selectedToken}
                   onSelect={(token) => {
                     setSelectedToken(token);
@@ -390,116 +444,116 @@ export function BridgeForm({
           </div>
         </div>
 
-      {/* Switch chains */}
-      <div className="relative z-10 -my-4.5 flex justify-center">
-        <button
-          onClick={() => {
-            const prevSource = sourceChain.id;
-            const prevDest = destChain.id;
-            onSourceChainChange(prevDest);
-            onDestChainChange(prevSource);
-          }}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
-          title="Switch chains"
-        >
-          <ArrowsDownUpIcon className="h-4 w-4" />
-        </button>
-      </div>
+        {/* Switch chains */}
+        <div className="relative z-10 -my-4.5 flex justify-center">
+          <button
+            onClick={() => {
+              const prevSource = sourceChain.id;
+              const prevDest = destChain.id;
+              onSourceChainChange(prevDest);
+              onDestChainChange(prevSource);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+            title="Switch chains"
+          >
+            <ArrowsDownUpIcon className="h-4 w-4" />
+          </button>
+        </div>
 
-      {/* To */}
-      <div className="rounded-xl border border-gray-200 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-500">To</span>
+        {/* To */}
+        <div className="rounded-xl border border-gray-200 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">To</span>
 
-          {/* Destination chain selector */}
-          <div className="relative" ref={destChainSelectorRef}>
-            <button
-              onClick={() => {
-                setShowDestChainSelector(!showDestChainSelector);
-                setShowSourceChainSelector(false);
-              }}
-              className="flex items-center gap-1.5 rounded-xl bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200"
-            >
-              {destChain.logo_url && (
-                <Image
-                  src={destChain.logo_url}
-                  alt={destChain.name}
-                  width={14}
-                  height={14}
-                  className="rounded"
-                  unoptimized
-                />
-              )}
-              {destChain.name}
-              <CaretDownIcon className="h-3 w-3 text-gray-400" />
-            </button>
-
-            {showDestChainSelector && (
-              <div className="absolute right-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
-                {destChainOptions.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-500">No supported chains available</p>
-                ) : (
-                  destChainOptions.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        onDestChainChange(c.id);
-                        setShowDestChainSelector(false);
-                      }}
-                      className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        {c.logo_url ? (
-                          <Image
-                            src={c.logo_url}
-                            alt={c.name}
-                            width={18}
-                            height={18}
-                            className="rounded"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="h-4.5 w-4.5 rounded bg-gray-200" />
-                        )}
-                        <span>{c.name}</span>
-                      </div>
-                      {c.id === destChain.id && (
-                        <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
-                      )}
-                    </button>
-                  ))
+            {/* Destination chain selector */}
+            <div className="relative" ref={destChainSelectorRef}>
+              <button
+                onClick={() => {
+                  setShowDestChainSelector(!showDestChainSelector);
+                  setShowSourceChainSelector(false);
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200"
+              >
+                {destChain.logo_url && (
+                  <Image
+                    src={destChain.logo_url}
+                    alt={destChain.name}
+                    width={14}
+                    height={14}
+                    className="rounded"
+                    unoptimized
+                  />
                 )}
-              </div>
-            )}
+                {destChain.name}
+                <CaretDownIcon className="h-3 w-3 text-gray-400" />
+              </button>
+
+              {showDestChainSelector && (
+                <div className="absolute right-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
+                  {destChainOptions.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-gray-500">No supported chains available</p>
+                  ) : (
+                    destChainOptions.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          onDestChainChange(c.id);
+                          setShowDestChainSelector(false);
+                        }}
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          {c.logo_url ? (
+                            <Image
+                              src={c.logo_url}
+                              alt={c.name}
+                              width={18}
+                              height={18}
+                              className="rounded"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="h-4.5 w-4.5 rounded bg-gray-200" />
+                          )}
+                          <span>{c.name}</span>
+                        </div>
+                        {c.id === destChain.id && (
+                          <CheckIcon className="h-4 w-4 text-[#27CEC5]" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Destination token (same symbol, read-only) */}
+            <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2">
+              {destChain.logo_url ? (
+                <Image src={destChain.logo_url} alt={destChain.symbol} width={20} height={20} className="h-5 w-5 rounded" unoptimized />
+              ) : (
+                <div className="flex h-5 w-5 items-center justify-center rounded bg-gray-300">
+                  <span className="text-xs font-bold">{destChain.symbol[0]}</span>
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-900">{destChain.symbol}</span>
+            </div>
+
+            {/* Receive amount */}
+            <div className="flex-1 text-right">
+              <p className="text-xl font-semibold text-[#27CEC5]">
+                {isQuoteLoading ? "…" : receiveAmount || "0.0"}
+              </p>
+              {isQuoteLoading && (
+                <div className="flex justify-end mt-1">
+                  <LoadingSpinner size="sm" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* Destination token (same symbol, read-only) */}
-          <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2">
-            {destChain.logo_url ? (
-              <Image src={destChain.logo_url} alt={destChain.symbol} width={20} height={20} className="h-5 w-5 rounded" unoptimized />
-            ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded bg-gray-300">
-                <span className="text-xs font-bold">{destChain.symbol[0]}</span>
-              </div>
-            )}
-            <span className="text-sm font-medium text-gray-900">{destChain.symbol}</span>
-          </div>
-
-          {/* Receive amount */}
-          <div className="flex-1 text-right">
-            <p className="text-xl font-semibold text-[#27CEC5]">
-              {isQuoteLoading ? "…" : receiveAmount || "0.0"}
-            </p>
-            {isQuoteLoading && (
-              <div className="flex justify-end mt-1">
-                <LoadingSpinner size="sm" />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
       </div>
 
       {/* Quote info */}
@@ -525,6 +579,12 @@ export function BridgeForm({
       )}
 
       {/* Errors */}
+      {!routeSupported && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+          Bridge route/token is not supported for this chain pair.
+        </div>
+      )}
+
       {quoteError && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
           {quoteError}
@@ -579,6 +639,7 @@ interface TokenDropdownProps {
   chainName: string;
   chainLogoUrl?: string;
   nativeBalance: string;
+  showNative: boolean;
   tokens: { address: string; symbol: string; name: string; balance: string; logo_url?: string }[];
   selected: SelectedToken;
   onSelect: (token: SelectedToken) => void;
@@ -589,50 +650,76 @@ function TokenDropdown({
   chainName,
   chainLogoUrl,
   nativeBalance,
+  showNative,
   tokens,
   selected,
   onSelect,
 }: TokenDropdownProps) {
+  const handleCopy = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    toast.success("Address copied to clipboard");
+  };
+
   return (
     <div className="absolute left-0 top-full z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
-      <button
-        onClick={() => onSelect("native")}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-          selected === "native" ? "bg-[#E0FAF8]" : ""
-        }`}
-      >
-        {chainLogoUrl ? (
-          <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
-            <span className="text-xs font-bold">{chainSymbol[0]}</span>
+      {showNative && (
+        <button
+          onClick={() => onSelect("native")}
+          className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${selected === "native" ? "bg-[#E0FAF8]" : ""
+            }`}
+        >
+          {chainLogoUrl ? (
+            <Image src={chainLogoUrl} alt={chainSymbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
+              <span className="text-xs font-bold">{chainSymbol[0]}</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900">{chainSymbol}</p>
+            <p className="truncate text-xs text-gray-400">{chainName}</p>
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-900">{chainSymbol}</p>
-          <p className="truncate text-xs text-gray-400">{chainName}</p>
-        </div>
-        <p className="shrink-0 text-xs text-gray-500">{nativeBalance}</p>
-      </button>
+          <p className="shrink-0 text-xs text-gray-500">{nativeBalance}</p>
+        </button>
+      )}
 
       {tokens.map((token) => (
         <button
           key={token.address}
           onClick={() => onSelect(token.address)}
-          className={`flex w-full items-center gap-3 border-t border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-            selected === token.address ? "bg-[#E0FAF8]" : ""
-          }`}
+          className={`flex w-full items-center gap-3 border-t border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${selected === token.address ? "bg-[#E0FAF8]" : ""
+            }`}
         >
           {token.logo_url ? (
-            <Image src={token.logo_url} alt={token.symbol} width={32} height={32} className="h-8 w-8 rounded-xl" unoptimized />
+            <Image src={token.logo_url} alt={token.symbol} width={32} height={32} className="h-8 w-8 shrink-0 rounded-xl" unoptimized />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-200">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-200">
               <span className="text-xs font-bold">{token.symbol[0]}</span>
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900">{token.symbol}</p>
+            <p className="font-medium truncate text-gray-900">{token.symbol}</p>
             <p className="truncate text-xs text-gray-400">{token.name}</p>
+            <div
+              className="flex items-center gap-1 mt-0.5 group/copy"
+              onClick={(e) => handleCopy(e, token.address)}
+              title="Copy address"
+            >
+              <p className="truncate text-[10px] text-gray-400 hover:text-[#27CEC5] transition-colors">
+                {token.address.slice(0, 6)}...{token.address.slice(-4)}
+              </p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="10"
+                height="10"
+                fill="currentColor"
+                viewBox="0 0 256 256"
+                className="text-gray-400 opacity-0 group-hover/copy:opacity-100 group-hover/copy:text-[#27CEC5] transition-all"
+              >
+                <path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"></path>
+              </svg>
+            </div>
           </div>
           <p className="shrink-0 text-xs text-gray-500">{token.balance}</p>
         </button>
