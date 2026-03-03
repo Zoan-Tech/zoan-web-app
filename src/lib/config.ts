@@ -28,7 +28,7 @@ export const ENI_SWAP_ROUTERS: Record<number, string> = {
   // ENI Mainnet
   173: "0x97ED8bE49D9A8B86247090Aa41E908E76B8fcF22",
   // ENI Testnet
-  174: "0x97ED8bE49D9A8B86247090Aa41E908E76B8fcF22",
+  174: "0x6741B16197ab5575d5A8C904159d4ef80ee1e6Bf",
 };
 
 export const ENI_TOKENS = [
@@ -64,7 +64,10 @@ export const ENI_TOKENS = [
   { chainId: 173, symbol: "MELEX", name: "MELEX", address: "0x20162421c4b9e37ba08da2cffed3b4389121e33b", decimals: 18, logoURI: "" },
   { chainId: 173, symbol: "FOX", name: "FOX", address: "0x32ff5ca0b271873ab51794714ec637e17c13754d", decimals: 18, logoURI: "" },
   { chainId: 173, symbol: "TCY", name: "TCY", address: "0x03dc48e455f2e9b52c00d3496a0aab7471929373", decimals: 18, logoURI: "" },
-  { chainId: 173, symbol: "SHOVEL", name: "SHOVEL", address: "0xc09883c3f121ab690365adb5356600eca92557f0", decimals: 18, logoURI: "" }
+  { chainId: 173, symbol: "SHOVEL", name: "SHOVEL", address: "0xc09883c3f121ab690365adb5356600eca92557f0", decimals: 18, logoURI: "" },
+  // ENI Testnet (chainId: 174)
+  { chainId: 174, symbol: "USDT", name: "ENI-Peg USDT", address: "0x605AfFcF6979AfddabE6A050b182bDC390fC71fF", decimals: 18, logoURI: "" },
+  { chainId: 174, symbol: "USDT", name: "Orbiter USDT", address: "0x98183dbB8E506F3276D2ae2D0d086c3B90F0E742", decimals: 6, logoURI: "" },
 ];
 
 // ENI RPC URLs used for server-side swap quoting.

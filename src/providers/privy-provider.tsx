@@ -149,6 +149,7 @@ export function PrivyProvider({ children }: Props) {
     <PrivyProviderBase
       appId={config.privy.appId}
       config={{
+        defaultChain: supportedChains[0],
         supportedChains,
         loginMethods: ["email"],
         appearance: {

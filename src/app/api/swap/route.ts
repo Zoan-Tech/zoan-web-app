@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config, ENI_RPC_URLS, ENI_SWAP_ROUTERS } from "@/lib/config";
 import { NATIVE_TOKEN_ADDRESS, ZERO_X_SUPPORTED_CHAINS } from "@/services/swap";
-import { decodeFunctionResult, encodeFunctionData, toHex } from "viem";
+import { decodeFunctionResult, encodeAbiParameters, encodeFunctionData, toHex } from "viem";
 
 const ZERO_X_BASE_URL = "https://api.0x.org/swap/permit2/quote";
 const TIMEOUT_MS = 10_000;
@@ -124,6 +124,52 @@ async function getExchangeQuote(
   }
 }
 
+// ENI testnet (174) uses a fixed-price router with a different ABI.
+// getTokenPrice(address) → uint256 (price with 8 decimals, e.g. 1e8 = $1.00)
+const TESTNET_PRICE_FN = "0xd02641a0";
+// swap(address tokenIn, address tokenOut, uint256 amountIn) — no amountOutMin/deadline
+const TESTNET_SWAP_FN = "0x969e3756";
+// Native EGAS price matches the on-chain USDT price (1:1 exchange observed)
+const TESTNET_NATIVE_PRICE = BigInt(100_000_000); // 1e8
+
+async function getTestnetTokenPrice(
+  rpcUrl: string,
+  routerAddress: string,
+  token: string
+): Promise<bigint> {
+  if (isNativeTokenAddress(token)) return TESTNET_NATIVE_PRICE;
+  const paddedAddr = "000000000000000000000000" + token.slice(2).toLowerCase();
+  const result = await ethCall(rpcUrl, { to: routerAddress, data: TESTNET_PRICE_FN + paddedAddr });
+  return BigInt(result);
+}
+
+async function getTestnetTokenDecimals(rpcUrl: string, token: string): Promise<bigint> {
+  if (isNativeTokenAddress(token)) return BigInt(18);
+  try {
+    const result = await ethCall(rpcUrl, { to: token, data: "0x313ce567" });
+    return BigInt(result);
+  } catch {
+    return BigInt(18);
+  }
+}
+
+async function getTestnetExchangeQuote(
+  rpcUrl: string,
+  routerAddress: string,
+  tokenIn: string,
+  tokenOut: string,
+  amountIn: bigint
+): Promise<bigint> {
+  const [priceIn, priceOut, decimalsIn, decimalsOut] = await Promise.all([
+    getTestnetTokenPrice(rpcUrl, routerAddress, tokenIn),
+    getTestnetTokenPrice(rpcUrl, routerAddress, tokenOut),
+    getTestnetTokenDecimals(rpcUrl, tokenIn),
+    getTestnetTokenDecimals(rpcUrl, tokenOut),
+  ]);
+  if (priceOut === BigInt(0)) return BigInt(0);
+  return (amountIn * priceIn * (BigInt(10) ** decimalsOut)) / (priceOut * (BigInt(10) ** decimalsIn));
+}
+
 /**
  * Server-side proxy for the 0x Protocol v2 swap quote API.
  * Keeps the API key server-side and handles chain routing.
@@ -184,31 +230,48 @@ export async function GET(request: NextRequest) {
       const value = sellIsNative ? toHex(amountIn) : "0x0";
 
       let buyAmount = BigInt(0);
-      try {
-        buyAmount = await getExchangeQuote(
-          rpcUrl,
-          routerAddress,
-          tokenIn,
-          tokenOut,
-          amountIn
+      let txData: string;
+
+      if (chainId === 174) {
+        // ENI testnet: fixed-price router with custom ABI
+        try {
+          buyAmount = await getTestnetExchangeQuote(rpcUrl, routerAddress, tokenIn, tokenOut, amountIn);
+        } catch (err: unknown) {
+          console.error("[Swap Proxy Router preflight] Reverted:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json(
+            { reason: "Insufficient liquidity for this swap pair or path not found." },
+            { status: 400 }
+          );
+        }
+
+        // swap(address tokenIn, address tokenOut, uint256 amountIn)
+        const encodedArgs = encodeAbiParameters(
+          [{ type: "address" }, { type: "address" }, { type: "uint256" }],
+          [tokenIn, tokenOut, amountIn]
         );
-      } catch (err: unknown) {
-        console.error("[Swap Proxy Router preflight] Reverted:", err instanceof Error ? err.message : String(err));
-        return NextResponse.json(
-          { reason: "Insufficient liquidity for this swap pair or path not found." },
-          { status: 400 }
-        );
+        txData = TESTNET_SWAP_FN + encodedArgs.slice(2);
+      } else {
+        // ENI mainnet: Uniswap v2-compatible router
+        try {
+          buyAmount = await getExchangeQuote(rpcUrl, routerAddress, tokenIn, tokenOut, amountIn);
+        } catch (err: unknown) {
+          console.error("[Swap Proxy Router preflight] Reverted:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json(
+            { reason: "Insufficient liquidity for this swap pair or path not found." },
+            { status: 400 }
+          );
+        }
+
+        const slippageFactor = BigInt(10000 - Number(slippageBps));
+        const amountOutMin = (buyAmount * slippageFactor) / BigInt(10000);
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20); // 20 minutes
+
+        txData = encodeFunctionData({
+          abi: eniRouterAbi,
+          functionName: "swapExactTokensForTokensSupportingFeeOnTransferTokens",
+          args: [amountIn, amountOutMin, [tokenIn, tokenOut], taker as `0x${string}`, deadline],
+        });
       }
-
-      const slippageFactor = BigInt(10000 - Number(slippageBps));
-      const amountOutMin = (buyAmount * slippageFactor) / BigInt(10000);
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20); // 20 minutes
-
-      const data = encodeFunctionData({
-        abi: eniRouterAbi,
-        functionName: "swapExactTokensForTokensSupportingFeeOnTransferTokens",
-        args: [amountIn, amountOutMin, [tokenIn, tokenOut], taker as `0x${string}`, deadline],
-      });
 
       let gasPrice = "0x0";
       try {
@@ -223,7 +286,7 @@ export async function GET(request: NextRequest) {
         gas = await ethEstimateGas(rpcUrl, {
           from: taker,
           to: routerAddress,
-          data,
+          data: txData,
           value,
         });
       } catch {
@@ -237,7 +300,7 @@ export async function GET(request: NextRequest) {
         allowanceTarget: sellIsNative ? "" : routerAddress,
         transaction: {
           to: routerAddress,
-          data,
+          data: txData,
           value,
           gas,
           gasPrice,
